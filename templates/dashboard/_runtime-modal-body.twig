@@ -1,0 +1,111 @@
+{% import "_includes/forms" as forms %}
+
+<form class="modal fitted fort-runtime-modal" accept-charset="UTF-8">
+  <header class="header">
+    <h1 class="left">{{ 'Edit runtime'|t('fort') }}</h1>
+  </header>
+
+  <div class="body">
+    <p class="light">{{ 'These values apply even when Control Panel plugin settings are read-only. Leave overrides empty to use the plugin defaults.'|t('fort')|widont }}</p>
+
+    {% set tunables = fortTunables|default({}) %}
+
+    <div class="fort-runtime-fields">
+      <h3>{{ 'Login protection'|t('fort') }}</h3>
+      <div class="fort-runtime-row">
+        {{ forms.field({
+          label: 'Failed login threshold override'|t('fort'),
+          id: 'fort-rt-login-th',
+          name: 'failedLoginThreshold',
+          value: fortRuntime.failedLoginThreshold ?? '',
+          unit: 'failures'|t('fort'),
+          type: 'number',
+          min: 1,
+          inputmode: 'numeric',
+          placeholder: tunables.failedLoginThreshold.baseFromSettings|default(''),
+        }, 'template:fort/_includes/forms/text') }}
+        {{ forms.field({
+          label: 'Failed login window override'|t('fort'),
+          unit: 'minutes'|t('fort'),
+          id: 'fort-rt-login-win',
+          name: 'failedLoginWindowMinutes',
+          value: fortRuntime.failedLoginWindowMinutes ?? '',
+          type: 'number',
+          min: 1,
+          inputmode: 'numeric',
+          placeholder: tunables.failedLoginWindowMinutes.baseFromSettings|default(''),
+        }, 'template:fort/_includes/forms/text') }}
+      </div>
+
+      <h3>{{ 'HTTP rate limiting'|t('fort') }}</h3>
+      <div class="fort-runtime-row">
+        {{ forms.field({
+          label: 'Max requests per IP override'|t('fort'),
+          unit: 'req / min'|t('fort'),
+          id: 'fort-rt-http',
+          name: 'maxRequestsPerIpPerMinute',
+          value: fortRuntime.maxRequestsPerIpPerMinute ?? '',
+          type: 'number',
+          min: 1,
+          inputmode: 'numeric',
+          placeholder: tunables.maxRequestsPerIpPerMinute.baseFromSettings|default(''),
+        }, 'template:fort/_includes/forms/text') }}
+        {{ forms.field({
+          label: 'Alerts before block override'|t('fort'),
+          unit: 'alerts'|t('fort'),
+          id: 'fort-rt-http-alerts',
+          name: 'httpRateLimitAlertsBeforeBlock',
+          value: fortRuntime.httpRateLimitAlertsBeforeBlock ?? '',
+          type: 'number',
+          min: 1,
+          inputmode: 'numeric',
+          placeholder: tunables.httpRateLimitAlertsBeforeBlock.baseFromSettings|default(''),
+        }, 'template:fort/_includes/forms/text') }}
+        {{ forms.field({
+          label: 'Alert window override'|t('fort'),
+          unit: 'minutes'|t('fort'),
+          id: 'fort-rt-http-win',
+          name: 'httpRateLimitAlertWindowMinutes',
+          value: fortRuntime.httpRateLimitAlertWindowMinutes ?? '',
+          type: 'number',
+          min: 1,
+          inputmode: 'numeric',
+          placeholder: tunables.httpRateLimitAlertWindowMinutes.baseFromSettings|default(''),
+        }, 'template:fort/_includes/forms/text') }}
+      </div>
+
+      <h3>{{ 'IP blocking'|t('fort') }}</h3>
+      <div class="fort-runtime-row">
+        {{ forms.field({
+          label: 'Default block duration'|t('fort'),
+          unit: 'minutes'|t('fort'),
+          id: 'fort-rt-duration',
+          name: 'defaultBlockDurationMinutes',
+          value: fortRuntime.defaultBlockDurationMinutes ?? '',
+          type: 'number',
+          min: 1,
+          inputmode: 'numeric',
+          placeholder: tunables.defaultBlockDurationMinutes.baseFromSettings|default(''),
+        }, 'template:fort/_includes/forms/text') }}
+        {{ forms.field({
+          label: 'Blocks before permanent'|t('fort'),
+          unit: 'blocks'|t('fort'),
+          id: 'fort-rt-perm-block',
+          name: 'permanentBlockAfterAutomaticBlocks',
+          value: fortRuntime.permanentBlockAfterAutomaticBlocks ?? '',
+          type: 'number',
+          min: 1,
+          inputmode: 'numeric',
+          placeholder: tunables.permanentBlockAfterAutomaticBlocks.baseFromSettings|default(''),
+        }, 'template:fort/_includes/forms/text') }}
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="buttons right">
+      <button type="button" class="btn fort-runtime-cancel">{{ 'Cancel'|t('app') }}</button>
+      <button type="button" class="btn submit fort-runtime-save">{{ 'Save'|t('app') }}</button>
+    </div>
+  </footer>
+</form>

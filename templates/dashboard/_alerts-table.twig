@@ -1,0 +1,63 @@
+{#
+  Reusable alerts table.
+
+  Variables:
+    alertRows  — array of row objects from SecurityAlertService
+    showFooter — (bool, default false) shows entry count footer
+    footerId   — (string, optional) DOM id for the footer count span (for JS updates)
+    tzHint     — date column timezone hint string
+#}
+{% set alertRows = alertRows|default([]) %}
+{% set showFooter = showFooter|default(false) %}
+{% set footerId = footerId|default('') %}
+{% set tzHint = tzHint|default('') %}
+
+<table class="data fullwidth">
+  <thead>
+    <tr>
+      <th class="fort-col-time">{{ 'Time'|t('fort') }}{% if tzHint %} <span class="info">{{ tzHint }}</span>{% endif %}</th>
+      <th>{{ 'Alert type'|t('fort') }}</th>
+      <th class="fort-col-ip">{{ 'IP'|t('fort') }}</th>
+      <th>{{ 'User'|t('app') }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in alertRows %}
+      <tr data-alert-type="{{ row.alertType|default('') }}">
+        <td class="fort-col-time">{{ row.dateTimeMain|default('—') }}</td>
+        <td>
+          <div class="flex flex-nowrap gap-xs items-center">
+            <span>{{ row.alertTypeLabel }}</span>
+            {% if row.metaRows is not empty %}
+              <span class="info">
+                <div class="smalltext fort-alert-info-hud">
+                  <table class="data fullwidth">
+                    <tbody>
+                      {% for meta in row.metaRows %}
+                        <tr>
+                          <th scope="row" class="light">{{ meta.label }}</th>
+                          <td><span class="break-words">{{ meta.value|e('html') }}</span></td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </span>
+            {% endif %}
+          </div>
+        </td>
+        <td>
+          {% include 'fort/dashboard/_ip-badge' with { ip: row.clientIp, status: 'active' } only %}
+        </td>
+        <td>{% include 'fort/dashboard/_triggering-user' with { triggeringUser: row.triggeringUser ?? null } only %}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="4">{{ 'No alerts recorded yet.'|t('fort') }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% if showFooter %}
+  <div class="flex light fort-table-footer">
+    <span{% if footerId %} id="{{ footerId }}"{% endif %}>{{ '{count, plural, =0{No entries} =1{1 entry} other{# entries}}'|t('fort', { count: alertRows|length }) }}</span>
+  </div>
+{% endif %}

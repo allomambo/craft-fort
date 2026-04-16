@@ -1,0 +1,392 @@
+{% import "_includes/forms" as forms %}
+
+{% set _owKey = 'This is being overridden by the <code>{prop}</code> config setting in <code>config/fort.php</code> for this environment.' %}
+
+{% set dayOptions = [
+  { value: 0, label: 'Sunday'|t('fort') },
+  { value: 1, label: 'Monday'|t('fort') },
+  { value: 2, label: 'Tuesday'|t('fort') },
+  { value: 3, label: 'Wednesday'|t('fort') },
+  { value: 4, label: 'Thursday'|t('fort') },
+  { value: 5, label: 'Friday'|t('fort') },
+  { value: 6, label: 'Saturday'|t('fort') },
+] %}
+
+{% set hourOptions = [] %}
+{% for h in 0..23 %}
+  {% set hourLabel = (h < 10 ? '0' : '') ~ h ~ ':00' %}
+  {% set hourOptions = hourOptions|merge([{ value: h, label: hourLabel }]) %}
+{% endfor %}
+
+<div class="{{ selectedTab != 'auth' ? 'hidden' }}" data-fort-tab-panel="auth" style="padding-bottom: 24px;">
+  {{ forms.lightswitchField({
+    label: 'Log authentication attempts'|t('fort'),
+    id: 'authLoggingEnabled',
+    name: 'authLoggingEnabled',
+    on: settings.authLoggingEnabled,
+    toggle: '#fort-auth-threshold-fields',
+    warning: 'authLoggingEnabled' in overrideKeys ? _owKey|t('fort', { prop: 'authLoggingEnabled' }) : null,
+    errors: settings.getErrors('authLoggingEnabled')
+  }) }}
+
+  <div id="fort-auth-threshold-fields" class="nested-fields{{ not settings.authLoggingEnabled ? ' hidden' }}">
+
+    <hr>
+    
+    <div class="pane tip" role="status">
+      <p>{{ 'Reaching the failed login threshold immediately blocks the IP.'|t('fort') }}</p>
+    </div>
+
+    <div class="flex" style="gap: 24px;">
+      <div style="flex: 1;">
+        {{ forms.field({
+          label: 'Failed logins per IP before alert'|t('fort'),
+          id: 'failedLoginThresholdPerIp',
+          name: 'failedLoginThresholdPerIp',
+          value: settings.failedLoginThresholdPerIp,
+          unit: 'failures'|t('fort'),
+          type: 'number',
+          min: 1,
+          warning: 'failedLoginThresholdPerIp' in overrideKeys ? _owKey|t('fort', { prop: 'failedLoginThresholdPerIp' }) : null,
+          errors: settings.getErrors('failedLoginThresholdPerIp')
+        }, 'template:fort/_includes/forms/text') }}
+      </div>
+      <div style="flex: 1;">
+        {{ forms.field({
+          label: 'Failed login window'|t('fort'),
+          id: 'failedLoginWindowMinutes',
+          name: 'failedLoginWindowMinutes',
+          value: settings.failedLoginWindowMinutes,
+          unit: 'minutes'|t('fort'),
+          type: 'number',
+          min: 1,
+          warning: 'failedLoginWindowMinutes' in overrideKeys ? _owKey|t('fort', { prop: 'failedLoginWindowMinutes' }) : null,
+          errors: settings.getErrors('failedLoginWindowMinutes')
+        }, 'template:fort/_includes/forms/text') }}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="{{ selectedTab != 'rateLimit' ? 'hidden' }}" data-fort-tab-panel="rateLimit" style="padding-bottom: 24px;">
+  {{ forms.lightswitchField({
+    label: 'Enable HTTP rate limiting'|t('fort'),
+    id: 'httpRateLimitEnabled',
+    name: 'httpRateLimitEnabled',
+    on: settings.httpRateLimitEnabled,
+    toggle: '#fort-http-rate-limit-fields',
+    warning: 'httpRateLimitEnabled' in overrideKeys ? _owKey|t('fort', { prop: 'httpRateLimitEnabled' }) : null,
+    errors: settings.getErrors('httpRateLimitEnabled')
+  }) }}
+
+  <div id="fort-http-rate-limit-fields" class="nested-fields{{ not settings.httpRateLimitEnabled ? ' hidden' }}">
+    
+    <hr>
+
+    <div class="pane tip" role="status">
+      <p>{{ 'When an IP accumulates enough alerts within the window below, Fort automatically blocks it. Block duration uses the value from the IP blocking tab.'|t('fort') }}</p>
+    </div>
+
+    {{ forms.field({
+      label: 'Max requests per IP'|t('fort'),
+      instructions: 'Exceeding this limit returns HTTP 429 and triggers a rate-limit alert.'|t('fort'),
+      id: 'maxRequestsPerIpPerMinute',
+      name: 'maxRequestsPerIpPerMinute',
+      value: settings.maxRequestsPerIpPerMinute,
+      unit: 'req / min'|t('fort'),
+      type: 'number',
+      min: 1,
+      warning: 'maxRequestsPerIpPerMinute' in overrideKeys ? _owKey|t('fort', { prop: 'maxRequestsPerIpPerMinute' }) : null,
+      errors: settings.getErrors('maxRequestsPerIpPerMinute')
+    }, 'template:fort/_includes/forms/text') }}
+
+
+    <div class="flex" style="gap: 24px;">
+      <div style="flex: 1;">
+        {{ forms.field({
+          label: 'HTTP rate-limit alerts before automatic IP block'|t('fort'),
+          instructions: 'Alert count before Fort automatically blocks the IP.'|t('fort'),
+          id: 'httpRateLimitAlertsBeforeBlock',
+          name: 'httpRateLimitAlertsBeforeBlock',
+          value: settings.httpRateLimitAlertsBeforeBlock,
+          unit: 'alerts'|t('fort'),
+          type: 'number',
+          min: 1,
+          warning: 'httpRateLimitAlertsBeforeBlock' in overrideKeys ? _owKey|t('fort', { prop: 'httpRateLimitAlertsBeforeBlock' }) : null,
+          errors: settings.getErrors('httpRateLimitAlertsBeforeBlock')
+        }, 'template:fort/_includes/forms/text') }}
+      </div>
+      <div style="flex: 1;">
+        {{ forms.field({
+          label: 'HTTP rate-limit alert window'|t('fort'),
+          instructions: 'Rolling window for the alert count.'|t('fort'),
+          id: 'httpRateLimitAlertWindowMinutes',
+          name: 'httpRateLimitAlertWindowMinutes',
+          value: settings.httpRateLimitAlertWindowMinutes,
+          unit: 'minutes'|t('fort'),
+          type: 'number',
+          min: 1,
+          warning: 'httpRateLimitAlertWindowMinutes' in overrideKeys ? _owKey|t('fort', { prop: 'httpRateLimitAlertWindowMinutes' }) : null,
+          errors: settings.getErrors('httpRateLimitAlertWindowMinutes')
+        }, 'template:fort/_includes/forms/text') }}
+      </div>
+    </div>
+
+    <hr>
+
+    {{ forms.lightswitchField({
+      label: 'Exclude Control Panel requests'|t('fort'),
+      id: 'excludeCpFromHttpRateLimit',
+      name: 'excludeCpFromHttpRateLimit',
+      on: settings.excludeCpFromHttpRateLimit,
+      warning: 'excludeCpFromHttpRateLimit' in overrideKeys ? _owKey|t('fort', { prop: 'excludeCpFromHttpRateLimit' }) : null,
+      errors: settings.getErrors('excludeCpFromHttpRateLimit')
+    }) }}
+
+    {{ forms.lightswitchField({
+      label: 'Exclude CP resource URLs'|t('fort'),
+      id: 'excludeCpResourcesFromHttpRateLimit',
+      name: 'excludeCpResourcesFromHttpRateLimit',
+      on: settings.excludeCpResourcesFromHttpRateLimit,
+      warning: 'excludeCpResourcesFromHttpRateLimit' in overrideKeys ? _owKey|t('fort', { prop: 'excludeCpResourcesFromHttpRateLimit' }) : null,
+      errors: settings.getErrors('excludeCpResourcesFromHttpRateLimit')
+    }) }}
+    
+  </div>
+</div>
+
+<div class="{{ selectedTab != 'ipBlocking' ? 'hidden' }}" data-fort-tab-panel="ipBlocking" style="padding-bottom: 24px;">
+  <div class="flex" style="gap: 24px;">
+    <div style="flex: 1;">
+      {{ forms.field({
+        label: 'Default IP block duration'|t('fort'),
+        instructions: 'Used for temporary automatic and manual blocks. Runtime overrides (Fort dashboard) can still replace this per environment.'|t('fort'),
+        id: 'defaultBlockDurationMinutes',
+        name: 'defaultBlockDurationMinutes',
+        value: settings.defaultBlockDurationMinutes,
+        unit: 'minutes'|t('fort'),
+        type: 'number',
+        min: 1,
+        warning: 'defaultBlockDurationMinutes' in overrideKeys ? _owKey|t('fort', { prop: 'defaultBlockDurationMinutes' }) : null,
+        errors: settings.getErrors('defaultBlockDurationMinutes')
+      }, 'template:fort/_includes/forms/text') }}
+    </div>
+    <div style="flex: 1;">
+      {{ forms.field({
+        label: 'Automatic blocks before permanent'|t('fort'),
+        instructions: 'When cumulative automatic blocks for an IP reach this count, the block becomes permanent until you unblock it. After each unblock from permanent, the next threshold doubles (e.g. 10 → 20 → 40) without resetting the block counter.'|t('fort'),
+        id: 'permanentBlockAfterAutomaticBlocks',
+        name: 'permanentBlockAfterAutomaticBlocks',
+        value: settings.permanentBlockAfterAutomaticBlocks,
+        unit: 'blocks'|t('fort'),
+        type: 'number',
+        min: 1,
+        warning: 'permanentBlockAfterAutomaticBlocks' in overrideKeys ? _owKey|t('fort', { prop: 'permanentBlockAfterAutomaticBlocks' }) : null,
+        errors: settings.getErrors('permanentBlockAfterAutomaticBlocks')
+      }, 'template:fort/_includes/forms/text') }}
+    </div>
+  </div>
+
+  <div class="pane tip" role="status">
+    <p>{{ 'After this threshold, the block becomes permanent until manual unblock. The threshold then increases by the same amount (e.g. 10 → 20 → 30).'|t('fort') }}</p>
+  </div>
+
+  <hr>
+  
+  {{ forms.lightswitchField({
+    label: 'Auto-sweep expired IP blocks'|t('fort'),
+    id: 'autoSweepExpiredIpBlocks',
+    name: 'autoSweepExpiredIpBlocks',
+    on: settings.autoSweepExpiredIpBlocks,
+    instructions: 'When enabled, Fort periodically updates the database so expired temporary blocks are marked inactive without waiting for each IP to visit the site again. When disabled, blocks are only cleared lazily when the blocked IP makes a new request.'|t('fort'),
+    warning: 'autoSweepExpiredIpBlocks' in overrideKeys ? _owKey|t('fort', { prop: 'autoSweepExpiredIpBlocks' }) : null,
+    errors: settings.getErrors('autoSweepExpiredIpBlocks')
+  }) }}
+
+  <hr>
+
+  {{ forms.textareaField({
+    label: 'Excluded IPs / CIDRs (one per line)'|t('fort'),
+    instructions: 'Excluded IPs apply to IP blocking and to HTTP rate limiting when it is enabled.'|t('fort'),
+    id: 'excludedIpsText',
+    name: 'excludedIpsText',
+    value: settings.excludedIps|join("\n"),
+    rows: 5,
+    warning: 'excludedIps' in overrideKeys ? _owKey|t('fort', { prop: 'excludedIps' }) : null,
+    errors: settings.getErrors('excludedIps')
+  }) }}
+
+  {% if currentUserIp|default and currentUserIp not in settings.excludedIps %}
+    <div style="margin-top: -16px; margin-bottom: 24px;">
+      <button type="button"
+              class="btn small js-fort-add-my-ip"
+              data-ip="{{ currentUserIp }}">
+        {{- 'Add my IP ({ip})'|t('fort', { ip: currentUserIp }) -}}
+      </button>
+    </div>
+    {% js %}
+    (function () {
+      var btn = document.querySelector('.js-fort-add-my-ip');
+      if (!btn) return;
+      var field = document.querySelector('textarea[name$="[excludedIpsText]"]');
+      if (!field) return;
+      btn.addEventListener('click', function () {
+        var ip = btn.dataset.ip;
+        var lines = field.value.split(/\r?\n/).map(function (l) { return l.trim(); });
+        if (lines.indexOf(ip) !== -1) return;
+        field.value = field.value.replace(/\s+$/, '') + (field.value.trim() ? '\n' : '') + ip;
+        btn.remove();
+      });
+    })();
+    {% endjs %}
+  {% endif %}
+</div>
+
+<div class="{{ selectedTab != 'notifications' ? 'hidden' }}" data-fort-tab-panel="notifications" style="padding-bottom: 24px;">
+  {{ forms.elementSelectField({
+    label: 'Maintainer recipients'|t('fort'),
+    id: 'fort-maintainer-users',
+    name: 'maintainerUserIds',
+    elementType: 'craft\\elements\\User',
+    elements: maintainerUsers,
+    limit: null,
+    selectionLabel: 'Add a user'|t('fort'),
+    warning: 'maintainerUserIds' in overrideKeys ? _owKey|t('fort', { prop: 'maintainerUserIds' }) : null,
+    instructions: 'If empty, notifications go to all admin accounts.'|t('fort'),
+    errors: settings.getErrors('maintainerUserIds'),
+  }) }}
+
+  <hr>
+
+  {{ forms.lightswitchField({
+    label: 'Email on significant events'|t('fort'),
+    id: 'significantEventEmailEnabled',
+    name: 'significantEventEmailEnabled',
+    on: settings.significantEventEmailEnabled,
+    warning: 'significantEventEmailEnabled' in overrideKeys ? _owKey|t('fort', { prop: 'significantEventEmailEnabled' }) : null,
+    errors: settings.getErrors('significantEventEmailEnabled')
+  }) }}
+
+  <hr>
+  
+  {{ forms.lightswitchField({
+    label: 'Daily digest email'|t('fort'),
+    id: 'dailyDigestEmailEnabled',
+    name: 'dailyDigestEmailEnabled',
+    on: settings.dailyDigestEmailEnabled,
+    toggle: '#fort-daily-digest-fields',
+    warning: 'dailyDigestEmailEnabled' in overrideKeys ? _owKey|t('fort', { prop: 'dailyDigestEmailEnabled' }) : null,
+    errors: settings.getErrors('dailyDigestEmailEnabled')
+  }) }}
+
+  <div id="fort-daily-digest-fields" class="nested-fields{{ not settings.dailyDigestEmailEnabled ? ' hidden' }}">
+    {{ forms.selectField({
+      label: 'Daily digest hour'|t('fort'),
+      id: 'dailyDigestHour',
+      name: 'dailyDigestHour',
+      value: settings.dailyDigestHour,
+      options: hourOptions,
+      instructions: '24-hour clock in the system timezone. This hour controls automatic digest sends (web activity or cron). Console commands send on demand and ignore this schedule.'|t('fort'),
+      warning: 'dailyDigestHour' in overrideKeys ? _owKey|t('fort', { prop: 'dailyDigestHour' }) : null,
+      errors: settings.getErrors('dailyDigestHour')
+    }) }}
+  </div>
+
+  <hr>
+
+  {{ forms.lightswitchField({
+    label: 'Weekly digest email'|t('fort'),
+    id: 'weeklyDigestEmailEnabled',
+    name: 'weeklyDigestEmailEnabled',
+    on: settings.weeklyDigestEmailEnabled,
+    toggle: '#fort-weekly-digest-fields',
+    warning: 'weeklyDigestEmailEnabled' in overrideKeys ? _owKey|t('fort', { prop: 'weeklyDigestEmailEnabled' }) : null,
+    errors: settings.getErrors('weeklyDigestEmailEnabled')
+  }) }}
+
+  <div id="fort-weekly-digest-fields" class="nested-fields{{ not settings.weeklyDigestEmailEnabled ? ' hidden' }}">
+    {{ forms.selectField({
+      label: 'Weekly digest day'|t('fort'),
+      id: 'weeklyDigestDayOfWeek',
+      name: 'weeklyDigestDayOfWeek',
+      value: settings.weeklyDigestDayOfWeek,
+      options: dayOptions,
+      instructions: 'Week runs Sunday–Saturday (same as the day list). The weekly digest uses the same hour as the daily digest above. Automatic sends respect this day and hour; console commands ignore the schedule.'|t('fort'),
+      warning: 'weeklyDigestDayOfWeek' in overrideKeys ? _owKey|t('fort', { prop: 'weeklyDigestDayOfWeek' }) : null,
+      errors: settings.getErrors('weeklyDigestDayOfWeek')
+    }) }}
+  </div>
+
+  <hr>
+
+  {{ forms.lightswitchField({
+    label: 'Send scheduled digests on web activity'|t('fort'),
+    id: 'digestSendOnActivity',
+    name: 'digestSendOnActivity',
+    on: settings.digestSendOnActivity,
+    instructions: 'When enabled, Fort occasionally checks after normal page requests (throttled) and sends digests when due. Disable if you only use server cron with the Fort console commands so sends are not triggered twice.'|t('fort'),
+    warning: 'digestSendOnActivity' in overrideKeys ? _owKey|t('fort', { prop: 'digestSendOnActivity' }) : null,
+    errors: settings.getErrors('digestSendOnActivity')
+  }) }}
+
+  <hr>
+
+  {{ forms.lightswitchField({
+    label: 'POST webhook on significant events'|t('fort'),
+    id: 'webhookOnSignificantEvent',
+    name: 'webhookOnSignificantEvent',
+    on: settings.webhookOnSignificantEvent,
+    toggle: '#fort-webhook-url-fields',
+    warning: 'webhookOnSignificantEvent' in overrideKeys ? _owKey|t('fort', { prop: 'webhookOnSignificantEvent' }) : null,
+    errors: settings.getErrors('webhookOnSignificantEvent')
+  }) }}
+
+  <div id="fort-webhook-url-fields" class="nested-fields{{ not settings.webhookOnSignificantEvent ? ' hidden' }}">
+    {{ forms.textField({
+      label: 'Webhook URL (HTTPS only)'|t('fort'),
+      id: 'webhookUrl',
+      name: 'webhookUrl',
+      value: settings.webhookUrl,
+      warning: 'webhookUrl' in overrideKeys ? _owKey|t('fort', { prop: 'webhookUrl' }) : null,
+      errors: settings.getErrors('webhookUrl')
+    }) }}
+  </div>
+
+</div>
+
+<div class="{{ selectedTab != 'retention' ? 'hidden' }}" data-fort-tab-panel="retention" style="padding-bottom: 24px;">
+  {{ forms.field({
+    label: 'Retain events'|t('fort'),
+    instructions: 'Applies to the security event audit log and stored alert history.'|t('fort'),
+    id: 'eventRetentionDays',
+    name: 'eventRetentionDays',
+    value: settings.eventRetentionDays,
+    unit: 'days'|t('fort'),
+    type: 'number',
+    min: 1,
+    warning: 'eventRetentionDays' in overrideKeys ? _owKey|t('fort', { prop: 'eventRetentionDays' }) : null,
+    errors: settings.getErrors('eventRetentionDays')
+  }, 'template:fort/_includes/forms/text') }}
+
+  <hr>
+
+  <div class="field">
+    <div class="heading">
+      <label>{{ 'Clear all events'|t('fort') }}</label>
+      <div class="instructions"><p>{{ 'Permanently delete every security event and alert from the database. Blocked IP rows are not affected. This cannot be undone.'|t('fort') }}</p></div>
+    </div>
+    <div class="input js-fort-clear-events-slot"></div>
+  </div>
+</div>
+
+<div class="{{ selectedTab != 'config' ? 'hidden' }}" data-fort-tab-panel="config">
+  <p class="instructions">{{ 'Settings can also be set in <code>config/fort.php</code>. Values in that file override Control Panel settings at runtime (useful per environment). Copy <code>config/fort.php.example</code> to <code>config/fort.php</code> to get started.'|t('fort')|raw }}</p>
+  <p class="light">{{ 'Control Panel values are stored in the database; Craft may also reflect them in project config for deployments. Keys you define in <code>config/fort.php</code> for this environment take precedence.'|t('fort')|raw }}</p>
+
+  <div class="pane tip" role="status">
+    <p>{{ 'The sample below is read-only. It is not executed from this screen.'|t('fort') }}</p>
+  </div>
+
+  <pre class="pane code readable" role="region" aria-label="{{ 'Example config file'|t('fort') }}"><code class="language-php">{{ configExample|e('html') }}</code></pre>
+</div>
+

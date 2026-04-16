@@ -1,0 +1,23 @@
+{#
+  IP address badge component with copy-on-hover button.
+
+  @param string ip          — The IP address to display.
+  @param string status      — Appearance variant: 'active' | 'blacklisted' | 'inactive' (default).
+#}
+{%- set ip = ip|default('—') -%}
+{%- set status = status|default('inactive') -%}
+
+{%- if status == 'blacklisted' -%}
+  {%- set _colorClass = '--black' -%}
+{%- elseif status == 'active' -%}
+  {%- set _colorClass = '--gray' -%}
+{%- else -%}
+  {%- set _colorClass = '--outline' -%}
+{%- endif -%}
+
+<span class="fort-ip-wrap">
+  <span class="badge --ip {{ _colorClass }}"><code>{{ ip }}</code></span>
+  <button type="button" class="fort-ip-copy" data-ip="{{ ip }}" title="{{ 'Copy IP'|t('fort') }}" aria-label="{{ 'Copy IP'|t('fort') }}">
+    <span class="fort-ip-copy-icon">{{ svg('@appicons/clipboard.svg') }}</span>
+  </button>
+</span>

@@ -1,0 +1,605 @@
+{% js %}
+(function () {
+  const MSG_SAVED = {{ 'Saved.'|t('fort')|json_encode|raw }};
+  const MSG_SAVE_FAIL = {{ 'Save failed.'|t('fort')|json_encode|raw }};
+  const MSG_BLOCK_SAVED = {{ 'Block saved.'|t('fort')|json_encode|raw }};
+  const MSG_BLOCK_FAIL = {{ 'Could not add block.'|t('fort')|json_encode|raw }};
+  const MSG_UNBLOCKED = {{ 'Unblocked.'|t('fort')|json_encode|raw }};
+  const MSG_UNBLOCK_FAIL = {{ 'Could not unblock.'|t('fort')|json_encode|raw }};
+  const MSG_NOTES_SAVED = {{ 'Notes saved.'|t('fort')|json_encode|raw }};
+  const MSG_NOTES_FAIL = {{ 'Could not save notes.'|t('fort')|json_encode|raw }};
+  const LBL_SAVE = {{ 'Save'|t('app')|json_encode|raw }};
+  const LBL_NO_ENTRIES = {{ '{count, plural, =0{No entries} =1{1 entry} other{# entries}}'|t('fort', { count: 0 })|json_encode|raw }};
+  const LBL_ONE_ENTRY = {{ '{count, plural, =0{No entries} =1{1 entry} other{# entries}}'|t('fort', { count: 1 })|json_encode|raw }};
+  const LBL_N_ENTRIES_TPL = {{ '{count} entries'|t('fort', { count: '__N__' })|json_encode|raw }};
+  function formatCount(n) {
+    if (n === 0) return LBL_NO_ENTRIES;
+    if (n === 1) return LBL_ONE_ENTRY;
+    return LBL_N_ENTRIES_TPL.replace('__N__', n);
+  }
+  const MSG_CLEAR_RUNTIME_CONFIRM = {{ 'Clear all runtime overrides? Values will revert to plugin settings / config.'|t('fort')|json_encode|raw }};
+  const MSG_RUNTIME_CLEARED = {{ 'Runtime overrides cleared.'|t('fort')|json_encode|raw }};
+  const MSG_CLEAR_RUNTIME_FAIL = {{ 'Could not clear runtime overrides.'|t('fort')|json_encode|raw }};
+  const LBL_RESET = {{ 'Reset'|t('fort')|json_encode|raw }};
+  const LBL_CANCEL = {{ 'Cancel'|t('app')|json_encode|raw }};
+
+  const ACTION_RUNTIME_MODAL = {{ fortRuntimeModalUrl|json_encode|raw }};
+  const ACTION_BLOCK_IP_MODAL = {{ fortBlockIpModalUrl|json_encode|raw }};
+
+  const headers = {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
+    'X-CSRF-Token': Craft.csrfTokenValue,
+  };
+
+  function withCsrf(body) {
+    body = body || {};
+    body[Craft.csrfTokenName] = Craft.csrfTokenValue;
+    return body;
+  }
+
+  function postJson(url, body) {
+    return fetch(url, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(withCsrf(body)),
+    }).then(function (r) {
+      return r.json().then(function (j) {
+        return { ok: r.ok, status: r.status, json: j };
+      });
+    });
+  }
+
+  function fieldSuffixVal($scope, fieldName) {
+    var $el = $scope.find('[name$="[' + fieldName + ']"]');
+    if (!$el.length) {
+      return null;
+    }
+    var v = $el.val();
+    return v === '' ? null : v;
+  }
+
+  function optionalInt(val) {
+    if (val === null || val === undefined || val === '') {
+      return null;
+    }
+    var n = parseInt(String(val), 10);
+    return isNaN(n) ? null : n;
+  }
+
+  const saveRuntimeUrl = {{ fortSaveRuntimeUrl|json_encode|raw }};
+  const addBlockUrl = {{ fortAddBlockUrl|json_encode|raw }};
+  const unblockUrl = {{ fortUnblockUrl|json_encode|raw }};
+  const clearRuntimeUrl = {{ fortClearRuntimeUrl|json_encode|raw }};
+  const saveNotesUrl = {{ fortSaveNotesUrl|json_encode|raw }};
+
+  var runtimeModal = null;
+  var blockIpModal = null;
+
+  function refreshOverviewContent() {
+    var url = new URL(window.location.href);
+    url.searchParams.set('_t', Date.now());
+    return fetch(url.toString(), {
+      headers: { 'Accept': 'text/html', 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin',
+    })
+    .then(function (r) { return r.text(); })
+    .then(function (html) {
+      var doc = new DOMParser().parseFromString(html, 'text/html');
+      var newContent = doc.getElementById('content');
+      var oldContent = document.getElementById('content');
+      if (newContent && oldContent) {
+        oldContent.innerHTML = newContent.innerHTML;
+      }
+      var newActions = doc.getElementById('action-buttons');
+      var oldActions = document.getElementById('action-buttons');
+      if (newActions && oldActions) {
+        oldActions.innerHTML = newActions.innerHTML;
+      }
+      initInfoIcons();
+      bindClearRuntimeBtn();
+      bindOpenRuntimeBtn();
+      drawSparklines();
+    })
+    .catch(function () {});
+  }
+
+  function initInfoIcons() {
+    $('#content').find('span.info').each(function () {
+      if (!$(this).data('infoicon')) {
+        $(this).infoicon();
+      }
+    });
+  }
+
+  function bindClearRuntimeBtn() {
+    var btn = document.getElementById('fort-clear-runtime');
+    if (btn && !btn._fortBound) {
+      btn._fortBound = true;
+      btn.addEventListener('click', handleClearRuntime);
+    }
+  }
+
+  function bindOpenRuntimeBtn() {
+    var btn = document.getElementById('fort-open-runtime');
+    if (btn && !btn._fortBound) {
+      btn._fortBound = true;
+      btn.addEventListener('click', handleOpenRuntime);
+    }
+  }
+
+  function handleOpenRuntime() {
+    fetch(ACTION_RUNTIME_MODAL, {
+      headers: { 'Accept': 'text/html', 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin',
+    })
+    .then(function(r) { return r.text(); })
+    .then(function(html) {
+      var $el = $(html);
+      runtimeModal = new Garnish.Modal($el, {
+        autoShow: true,
+        closeOtherModals: true,
+        hideOnEsc: true,
+        hideOnShadeClick: true,
+      });
+      runtimeModal.settings.triggerElement = function() {
+        return $('#fort-open-runtime');
+      };
+      bindRuntimeModal(runtimeModal, $el);
+    })
+    .catch(function() {
+      Craft.cp.displayError(MSG_SAVE_FAIL);
+    });
+  }
+
+  function handleClearRuntime() {
+    var $body = $('<div class="modal fitted" style="max-width:420px">' +
+      '<div class="body" style="padding:24px 28px;overflow:visible">' +
+        '<h2 style="margin:0 0 8px">' + $('<span>').text(LBL_RESET).html() + '</h2>' +
+        '<p class="light" style="margin:0">' + $('<span>').text(MSG_CLEAR_RUNTIME_CONFIRM).html() + '</p>' +
+      '</div>' +
+      '<div class="footer">' +
+        '<div class="flex flex-nowrap" style="justify-content:flex-end">' +
+          '<button type="button" class="btn fort-reset-cancel">' + $('<span>').text(LBL_CANCEL).html() + '</button>' +
+          '<button type="button" class="btn submit fort-reset-confirm">' + $('<span>').text(LBL_RESET).html() + '</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>');
+
+    var modal = new Garnish.Modal($body, {
+      autoShow: true,
+      closeOtherModals: true,
+      hideOnEsc: true,
+      hideOnShadeClick: true,
+    });
+
+    $body.find('.fort-reset-cancel').on('click', function () {
+      modal.hide();
+    });
+
+    $body.find('.fort-reset-confirm').on('click', function () {
+      var $btn = $(this);
+      $btn.prop('disabled', true).addClass('loading');
+      postJson(clearRuntimeUrl, {}).then(function (res) {
+        modal.hide();
+        if (res.ok && res.json.success) {
+          Craft.cp.displayNotice(MSG_RUNTIME_CLEARED);
+          refreshOverviewContent();
+        } else {
+          Craft.cp.displayError((res.json && res.json.message) ? res.json.message : MSG_CLEAR_RUNTIME_FAIL);
+        }
+      }).catch(function () {
+        modal.hide();
+        Craft.cp.displayError(MSG_CLEAR_RUNTIME_FAIL);
+      });
+    });
+  }
+
+  function bindRuntimeModal(modal, $el) {
+    Craft.initUiElements($el);
+    $el.find('.fort-runtime-cancel').on('click', function() {
+      modal.hide();
+    });
+    $el.find('.fort-runtime-save').on('click', function() {
+      function val(name) {
+        var v = $el.find('[name="' + name + '"]').val();
+        return (v === '' || v == null) ? null : v;
+      }
+      var payload = {
+        defaultBlockDurationMinutes: val('defaultBlockDurationMinutes') != null ? parseInt(String(val('defaultBlockDurationMinutes')), 10) : null,
+        permanentBlockAfterAutomaticBlocks: optionalInt(val('permanentBlockAfterAutomaticBlocks')),
+        failedLoginThreshold: optionalInt(val('failedLoginThreshold')),
+        failedLoginWindowMinutes: optionalInt(val('failedLoginWindowMinutes')),
+        maxRequestsPerIpPerMinute: optionalInt(val('maxRequestsPerIpPerMinute')),
+        httpRateLimitAlertsBeforeBlock: optionalInt(val('httpRateLimitAlertsBeforeBlock')),
+        httpRateLimitAlertWindowMinutes: optionalInt(val('httpRateLimitAlertWindowMinutes')),
+      };
+      postJson(saveRuntimeUrl, payload).then(function(res) {
+        if (res.ok && res.json.success) {
+          Craft.cp.displayNotice(MSG_SAVED);
+          modal.hide();
+          runtimeModal = null;
+          refreshOverviewContent();
+        } else {
+          Craft.cp.displayError((res.json && res.json.message) ? res.json.message : MSG_SAVE_FAIL);
+        }
+      }).catch(function() {
+        Craft.cp.displayError(MSG_SAVE_FAIL);
+      });
+    });
+  }
+
+  function bindBlockIpModal(modal, $el) {
+    Craft.initUiElements($el);
+    $el.find('.fort-block-ip-cancel').on('click', function () {
+      modal.hide();
+    });
+    $el.find('.fort-block-ip-save').on('click', function () {
+      var ip = fieldSuffixVal($el, 'ip');
+      var notes = fieldSuffixVal($el, 'notes');
+      var permanent = false;
+      var $lsBtn = $el.find('button[id$="fort-manual-permanent"]');
+      if ($lsBtn.length) {
+        permanent = $lsBtn.hasClass('on');
+      }
+      postJson(addBlockUrl, { ip: ip, notes: notes, permanent: permanent }).then(function (res) {
+        if (res.ok && res.json.success) {
+          Craft.cp.displayNotice(MSG_BLOCK_SAVED);
+          modal.hide();
+          blockIpModal = null;
+          window.location.reload();
+        } else {
+          Craft.cp.displayError((res.json && res.json.message) ? res.json.message : MSG_BLOCK_FAIL);
+        }
+      }).catch(function () {
+        Craft.cp.displayError(MSG_BLOCK_FAIL);
+      });
+    });
+  }
+
+  bindOpenRuntimeBtn();
+
+  var openBlk = document.getElementById('fort-open-block-ip');
+  if (openBlk) {
+    openBlk.addEventListener('click', function () {
+      fetch(ACTION_BLOCK_IP_MODAL, {
+        headers: { 'Accept': 'text/html', 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin',
+      })
+      .then(function (r) { return r.text(); })
+      .then(function (html) {
+        var $el = $(html);
+        blockIpModal = new Garnish.Modal($el, {
+          autoShow: true,
+          closeOtherModals: true,
+          hideOnEsc: true,
+          hideOnShadeClick: true,
+        });
+        bindBlockIpModal(blockIpModal, $el);
+      })
+      .catch(function () {
+        Craft.cp.displayError(MSG_BLOCK_FAIL);
+      });
+    });
+  }
+
+  bindClearRuntimeBtn();
+
+  var tabNav = document.getElementById('fort-blocked-tabs');
+  var footerCount = document.getElementById('fort-blocked-count');
+
+  function applyFilter(filter, count) {
+    var tbody = document.querySelector('#fort-blocked-table tbody');
+    if (!tbody) return;
+    tbody.querySelectorAll('tr[data-status]').forEach(function (row) {
+      row.style.display = row.getAttribute('data-status') === filter ? '' : 'none';
+    });
+    if (footerCount) {
+      footerCount.textContent = formatCount(count);
+    }
+  }
+
+  function activateBlockedTab(filter, pushState) {
+    if (!tabNav) return;
+    tabNav.querySelectorAll('.fort-filter-tab').forEach(function (t) { t.classList.remove('sel'); });
+    var target = tabNav.querySelector('[data-filter="' + filter + '"]') || tabNav.querySelector('.fort-filter-tab');
+    if (target) target.classList.add('sel');
+    var count = target ? parseInt(target.getAttribute('data-count') || '0', 10) : 0;
+    applyFilter(filter, count);
+    if (pushState && window.history && window.history.pushState) {
+      var url = new URL(window.location.href);
+      url.searchParams.set('filter', filter);
+      window.history.pushState({ fortBlockedFilter: filter }, '', url.toString());
+    }
+  }
+
+  function bindBlockedTabs() {
+    if (!tabNav) return;
+    tabNav.querySelectorAll('.fort-filter-tab').forEach(function (tab) {
+      tab.addEventListener('click', function () {
+        activateBlockedTab(tab.getAttribute('data-filter'), true);
+      });
+    });
+    var activeTab = tabNav.querySelector('.fort-filter-tab.sel');
+    if (activeTab) {
+      applyFilter(activeTab.getAttribute('data-filter'), parseInt(activeTab.getAttribute('data-count') || '0', 10));
+    }
+  }
+
+  // ── Refresh blocked page content (re-fetch server-rendered HTML) ──
+  function refreshBlockedSection() {
+    var url = new URL(window.location.href);
+    url.searchParams.set('_t', Date.now());
+    return fetch(url.toString(), {
+      headers: { 'Accept': 'text/html' },
+      credentials: 'same-origin',
+    })
+    .then(function (r) { return r.text(); })
+    .then(function (html) {
+      var doc = new DOMParser().parseFromString(html, 'text/html');
+      var newContent = doc.getElementById('content');
+      var oldContent = document.getElementById('content');
+      if (!newContent || !oldContent) return;
+      oldContent.innerHTML = newContent.innerHTML;
+      tabNav = document.getElementById('fort-blocked-tabs');
+      footerCount = document.getElementById('fort-blocked-count');
+      bindBlockedTabs();
+      initInfoIcons();
+      Craft.initUiElements($('#content'));
+    })
+    .catch(function (err) {
+      console.error('refreshBlockedSection failed:', err);
+    });
+  }
+
+  window.addEventListener('popstate', function (e) {
+    if (!tabNav) return;
+    var f = (e.state && e.state.fortBlockedFilter)
+      ? e.state.fortBlockedFilter
+      : (new URL(window.location.href).searchParams.get('filter') || 'active');
+    activateBlockedTab(f, false);
+  });
+
+  // ── Unblock (async) ──
+  $(document).on('click', '.fort-action-unblock', function () {
+    var ip = $(this).attr('data-ip');
+    if (!ip) return;
+    postJson(unblockUrl, { ip: ip }).then(function (res) {
+      if (res.ok && res.json.success) {
+        Craft.cp.displayNotice(MSG_UNBLOCKED);
+        refreshBlockedSection();
+      } else {
+        Craft.cp.displayError((res.json && res.json.message) ? res.json.message : MSG_UNBLOCK_FAIL);
+      }
+    }).catch(function () {
+      Craft.cp.displayError(MSG_UNBLOCK_FAIL);
+    });
+  });
+
+  // ── Reblock (async) ──
+  $(document).on('click', '.fort-action-reblock', function () {
+    var ip = $(this).attr('data-ip');
+    if (!ip) return;
+    postJson(addBlockUrl, { ip: ip }).then(function (res) {
+      if (res.ok && res.json.success) {
+        Craft.cp.displayNotice(MSG_BLOCK_SAVED);
+        refreshBlockedSection();
+      } else {
+        Craft.cp.displayError((res.json && res.json.message) ? res.json.message : MSG_BLOCK_FAIL);
+      }
+    }).catch(function () {
+      Craft.cp.displayError(MSG_BLOCK_FAIL);
+    });
+  });
+
+  // ── Notes edit HUD (async) ──
+  $(document).on('click', '.fort-action-edit-notes', function () {
+    var $item = $(this);
+    var ip = $item.attr('data-ip');
+    var currentNotes = $item.attr('data-notes') || '';
+    var menuId = $item.closest('.menu--disclosure').attr('id');
+    var $trigger = $('[aria-controls="' + menuId + '"]');
+    var $body = $('<div style="min-width:260px">' +
+      '<textarea class="text fullwidth" rows="4" style="min-width:250px"></textarea>' +
+      '<div class="flex flex-nowrap" style="margin-top:8px;justify-content:flex-end">' +
+        '<button type="button" class="btn submit small fort-notes-hud-save">' + LBL_SAVE + '</button>' +
+      '</div>' +
+    '</div>');
+    $body.find('textarea').val(currentNotes);
+
+    var hud = new Garnish.HUD($trigger, $body, {
+      orientations: ['top', 'bottom', 'right', 'left'],
+    });
+
+    $body.find('.fort-notes-hud-save').on('click', function () {
+      var newNotes = $body.find('textarea').val();
+      postJson(saveNotesUrl, { ip: ip, notes: newNotes }).then(function (res) {
+        if (res.ok && res.json.success) {
+          Craft.cp.displayNotice(MSG_NOTES_SAVED);
+          hud.hide();
+          refreshBlockedSection();
+        } else {
+          Craft.cp.displayError((res.json && res.json.message) ? res.json.message : MSG_NOTES_FAIL);
+        }
+      }).catch(function () {
+        Craft.cp.displayError(MSG_NOTES_FAIL);
+      });
+    });
+  });
+
+  // ── Filter tabs on Blocked IPs page ──
+  bindBlockedTabs();
+  var _initBlockedFilter = (typeof fortInitialBlockedFilter !== 'undefined') ? fortInitialBlockedFilter : 'active';
+  if (_initBlockedFilter !== 'active') {
+    activateBlockedTab(_initBlockedFilter, false);
+  }
+
+  // ── Filter tabs on Alerts page ──
+  var alertTabNav = document.getElementById('fort-alerts-tabs');
+  var alertFooterCount = document.getElementById('fort-alerts-count');
+  if (alertTabNav) {
+    function applyAlertFilter(filter, count) {
+      var tbody = document.querySelector('#fort-alerts-table tbody');
+      if (!tbody) return;
+      tbody.querySelectorAll('tr[data-alert-type]').forEach(function (row) {
+        if (filter === 'all' || row.getAttribute('data-alert-type') === filter) {
+          row.style.display = '';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+      if (alertFooterCount) {
+        alertFooterCount.textContent = formatCount(count);
+      }
+    }
+    function activateAlertTab(filter, pushState) {
+      alertTabNav.querySelectorAll('.fort-filter-tab').forEach(function (t) { t.classList.remove('sel'); });
+      var target = alertTabNav.querySelector('[data-filter="' + filter + '"]') || alertTabNav.querySelector('[data-filter="all"]');
+      if (target) target.classList.add('sel');
+      var count = target ? parseInt(target.getAttribute('data-count') || '0', 10) : 0;
+      applyAlertFilter(filter, count);
+      if (pushState && window.history && window.history.pushState) {
+        var url = new URL(window.location.href);
+        if (filter === 'all') {
+          url.searchParams.delete('filter');
+        } else {
+          url.searchParams.set('filter', filter);
+        }
+        window.history.pushState({ fortAlertFilter: filter }, '', url.toString());
+      }
+    }
+    alertTabNav.querySelectorAll('.fort-filter-tab').forEach(function (tab) {
+      tab.addEventListener('click', function () {
+        activateAlertTab(tab.getAttribute('data-filter'), true);
+      });
+    });
+    // Apply initial filter from server-rendered var (set before _scripts.twig loads)
+    var _initAlertFilter = (typeof fortInitialAlertFilter !== 'undefined') ? fortInitialAlertFilter : 'all';
+    if (_initAlertFilter !== 'all') {
+      activateAlertTab(_initAlertFilter, false);
+    }
+    window.addEventListener('popstate', function (e) {
+      if (!alertTabNav) return;
+      var f = (e.state && e.state.fortAlertFilter) ? e.state.fortAlertFilter : (new URL(window.location.href).searchParams.get('filter') || 'all');
+      activateAlertTab(f, false);
+    });
+  }
+
+  // ── Filter tabs on Events page ──
+  var eventTabNav = document.getElementById('fort-events-tabs');
+  var eventFooterCount = document.getElementById('fort-events-count');
+  if (eventTabNav) {
+    function applyEventFilter(filter, count) {
+      var tbody = document.querySelector('#fort-events-table tbody');
+      if (!tbody) return;
+      tbody.querySelectorAll('tr[data-event-type]').forEach(function (row) {
+        if (filter === 'all' || row.getAttribute('data-event-type') === filter) {
+          row.style.display = '';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+      if (eventFooterCount) {
+        eventFooterCount.textContent = formatCount(count);
+      }
+    }
+    function activateEventTab(filter, pushState) {
+      eventTabNav.querySelectorAll('.fort-filter-tab').forEach(function (t) { t.classList.remove('sel'); });
+      var target = eventTabNav.querySelector('[data-filter="' + filter + '"]') || eventTabNav.querySelector('[data-filter="all"]');
+      if (target) target.classList.add('sel');
+      var count = target ? parseInt(target.getAttribute('data-count') || '0', 10) : 0;
+      applyEventFilter(filter, count);
+      if (pushState && window.history && window.history.pushState) {
+        var url = new URL(window.location.href);
+        if (filter === 'all') {
+          url.searchParams.delete('filter');
+        } else {
+          url.searchParams.set('filter', filter);
+        }
+        window.history.pushState({ fortEventFilter: filter }, '', url.toString());
+      }
+    }
+    eventTabNav.querySelectorAll('.fort-filter-tab').forEach(function (tab) {
+      tab.addEventListener('click', function () {
+        activateEventTab(tab.getAttribute('data-filter'), true);
+      });
+    });
+    var _initEventFilter = (typeof fortInitialEventFilter !== 'undefined') ? fortInitialEventFilter : 'all';
+    if (_initEventFilter !== 'all') {
+      activateEventTab(_initEventFilter, false);
+    }
+    window.addEventListener('popstate', function (e) {
+      if (!eventTabNav) return;
+      var f = (e.state && e.state.fortEventFilter) ? e.state.fortEventFilter : (new URL(window.location.href).searchParams.get('filter') || 'all');
+      activateEventTab(f, false);
+    });
+  }
+
+  function drawSparklines() {
+    document.querySelectorAll('.fort-sparkline').forEach(function (canvas) {
+      var values = JSON.parse(canvas.getAttribute('data-values') || '[]');
+      var color = canvas.getAttribute('data-color') || '#5b7cad';
+      if (!values.length) return;
+
+      var dpr = window.devicePixelRatio || 1;
+      var rect = canvas.getBoundingClientRect();
+      var w = rect.width || canvas.width;
+      var h = rect.height || canvas.height;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      var ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+
+      var max = Math.max.apply(null, values) || 1;
+      var stepX = w / (values.length - 1 || 1);
+      var pad = 4;
+
+      var gradient = ctx.createLinearGradient(0, 0, 0, h);
+      gradient.addColorStop(0, color + '30');
+      gradient.addColorStop(1, color + '00');
+
+      ctx.beginPath();
+      ctx.moveTo(0, h);
+      values.forEach(function (v, i) {
+        var x = i * stepX;
+        var y = h - pad - ((v / max) * (h - pad * 2));
+        ctx.lineTo(x, y);
+      });
+      ctx.lineTo(w, h);
+      ctx.closePath();
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      ctx.beginPath();
+      values.forEach(function (v, i) {
+        var x = i * stepX;
+        var y = h - pad - ((v / max) * (h - pad * 2));
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    });
+  }
+
+  const MSG_IP_COPIED = {{ 'IP copied.'|t('fort')|json_encode|raw }};
+
+  $(document).on('click', '.fort-ip-copy, .fort-action-copy-ip', function () {
+    var ip = $(this).attr('data-ip');
+    if (!ip) return;
+    navigator.clipboard.writeText(ip).then(function () {
+      Craft.cp.displayNotice(MSG_IP_COPIED);
+    });
+  });
+
+  Garnish.$doc.ready(function () {
+    if (typeof Craft === 'undefined' || !Craft.initUiElements) {
+      return;
+    }
+    initInfoIcons();
+    drawSparklines();
+  });
+})();
+{% endjs %}

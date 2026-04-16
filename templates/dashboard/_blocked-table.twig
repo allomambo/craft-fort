@@ -1,0 +1,128 @@
+{#
+  Reusable blocked IP table.
+
+  Variables:
+    blockedRows  — array of row objects from IpBlockService::listBlockedRowsForCp()
+    compact      — (bool, default false) hides Notes and Action columns
+    showFooter   — (bool, default false) shows entry count footer
+    footerCount  — (int) count to display in footer (required when showFooter is true)
+    tzHint       — date column timezone hint string
+#}
+{% set compact = compact|default(false) %}
+{% set showFooter = showFooter|default(false) %}
+{% set footerCount = footerCount|default(blockedRows|length) %}
+{% set tzHint = tzHint|default('') %}
+{% set emptyColspan = compact ? 5 : 7 %}
+
+<table class="data fullwidth">
+  <thead>
+    <tr>
+      <th class="fort-col-ip">{{ 'IP'|t('fort') }}</th>
+      <th class="fort-col-time">{{ 'Until'|t('fort') }}{% if tzHint %} <span class="info">{{ tzHint }}</span>{% endif %}</th>
+      <th class="fort-col-time">{{ 'Last blocked'|t('fort') }}{% if tzHint %} <span class="info">{{ tzHint }}</span>{% endif %}</th>
+      <th>{{ 'Count'|t('fort') }}</th>
+      <th>{{ 'Last reason'|t('fort') }}</th>
+      {% if not compact %}
+        <th>{{ 'Notes'|t('fort') }}</th>
+        <th class="thin"></th>
+      {% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in blockedRows %}
+      {% if row.blocked and row.isPermanent %}
+        {% set rowStatus = 'blacklisted' %}
+      {% elseif row.blocked %}
+        {% set rowStatus = 'active' %}
+      {% else %}
+        {% set rowStatus = 'inactive' %}
+      {% endif %}
+      <tr data-status="{{ rowStatus }}">
+        <td>
+            {% include 'fort/dashboard/_ip-badge' with { ip: row.clientIp, status: rowStatus } only %}
+        </td>
+        <td>
+          {% if row.blocked and row.isPermanent %}
+            {{ 'Permanent'|t('fort') }} <span class="info">{{ 'No automatic expiry; unblock manually.'|t('fort') }}</span>
+          {% else %}
+            {{ row.blockedUntilParts.main|default('—') }}
+          {% endif %}
+        </td>
+        <td>
+          {{ row.lastBlockedAtParts.main|default('—') }}
+        </td>
+        <td>{{ row.blockCount }}</td>
+        <td>{{ row.lastReasonLabel|default(row.lastReason ?? '—') }}</td>
+        {% if not compact %}
+          <td>
+            {% if row.notes %}
+              <span class="info">{{ row.notes|e('html')|nl2br }}</span>
+            {% else %}
+              —
+            {% endif %}
+          </td>
+          <td class="thin">
+            {% include '_includes/disclosuremenu' with {
+              withButton: true,
+              buttonLabel: null,
+              buttonHtml: null,
+              buttonAttributes: {
+                class: ['action-btn', 'small', 'hairline'],
+              },
+              hiddenLabel: 'Actions'|t('fort'),
+              items: [
+                {
+                  icon: 'clipboard',
+                  label: 'Copy IP'|t('fort'),
+                  attributes: {
+                    class: ['fort-action-copy-ip'],
+                    data: { ip: row.clientIp },
+                  },
+                },
+                {
+                  icon: 'magnifying-glass',
+                  label: 'Trace IP'|t('fort'),
+                  url: 'https://abuseipdb.com/check/' ~ row.clientIp,
+                  attributes: {
+                    target: '_blank',
+                    rel: 'noopener noreferrer',
+                  },
+                },
+                row.blocked ? {
+                  icon: 'unlock',
+                  label: 'Unblock'|t('fort'),
+                  attributes: {
+                    class: ['fort-action-unblock'],
+                    data: { ip: row.clientIp },
+                  },
+                } : {
+                  icon: 'lock',
+                  label: 'Reblock'|t('fort'),
+                  attributes: {
+                    class: ['fort-action-reblock'],
+                    data: { ip: row.clientIp },
+                  },
+                },
+                {
+                  icon: 'pencil',
+                  label: row.notes ? 'Edit notes'|t('fort') : 'Add notes'|t('fort'),
+                  attributes: {
+                    class: ['fort-action-edit-notes'],
+                    data: { ip: row.clientIp, notes: row.notes|default('') },
+                  },
+                },
+              ],
+            } %}
+          </td>
+        {% endif %}
+      </tr>
+    {% else %}
+      <tr><td colspan="{{ emptyColspan }}">{{ 'No blocked IP rows yet.'|t('fort') }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% if showFooter %}
+  <div id="fort-blocked-footer" class="flex light fort-table-footer">
+    <span id="fort-blocked-count">{{ '{count, plural, =0{No entries} =1{1 entry} other{# entries}}'|t('fort', { count: footerCount }) }}</span>
+  </div>
+{% endif %}

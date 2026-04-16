@@ -1,0 +1,59 @@
+{% extends "_layouts/cp" %}
+
+{% block actionButton %}
+  <button type="button" id="fort-open-block-ip" class="btn submit add icon">{{ 'Block IP'|t('fort') }}</button>
+{% endblock %}
+
+{% block content %}
+  {% set fortDateColTzHint = 'Dates use the system timezone ({tz}).'|t('fort', { tz: fortAppTimezone|default('') }) %}
+  {% if fortCurrentIpExcluded|default(false) %}
+    <div id="fort-excluded-ip-notice" class="pane tip">
+      <p>{{ 'Your IP ({ip}) is in the Fort excluded list. Events are recorded for audit purposes, but this IP will not trigger alerts, notifications, or blocks.'|t('fort', { ip: fortRequestClientIp|default('—') }) }}</p>
+    </div>
+  {% endif %}
+  {% set blockedRows = fortBlockedRows|default([]) %}
+
+  {# ── Resolve active filter from URL param ── #}
+  {% set _validBlockedFilters = ['active', 'inactive', 'blacklisted'] %}
+  {% set _requestedFilter = craft.app.request.getQueryParam('filter')|default('active') %}
+  {% set activeBlockedFilter = _requestedFilter in _validBlockedFilters ? _requestedFilter : 'active' %}
+
+  {# ── Compute tab counts ── #}
+  {% set countAll = blockedRows|length %}
+  {% set countBlacklisted = 0 %}
+  {% set countActive = 0 %}
+  {% set countInactive = 0 %}
+  {% for row in blockedRows %}
+    {% if row.blocked and row.isPermanent %}
+      {% set countBlacklisted = countBlacklisted + 1 %}
+    {% elseif row.blocked %}
+      {% set countActive = countActive + 1 %}
+    {% else %}
+      {% set countInactive = countInactive + 1 %}
+    {% endif %}
+  {% endfor %}
+
+  {# ── Resolve footer count for the active filter ── #}
+  {% if activeBlockedFilter == 'inactive' %}
+    {% set activeFooterCount = countInactive %}
+  {% elseif activeBlockedFilter == 'blacklisted' %}
+    {% set activeFooterCount = countBlacklisted %}
+  {% else %}
+    {% set activeFooterCount = countActive %}
+  {% endif %}
+
+  {# ── Filter tabs ── #}
+  <div id="fort-blocked-tabs" class="fort-filter-tabs">
+    <button type="button" class="fort-filter-tab{{ activeBlockedFilter == 'active' ? ' sel' : '' }}" data-filter="active" data-count="{{ countActive }}">{{ 'Active'|t('fort') }}</button>
+    <button type="button" class="fort-filter-tab{{ activeBlockedFilter == 'inactive' ? ' sel' : '' }}" data-filter="inactive" data-count="{{ countInactive }}">{{ 'Inactive'|t('fort') }}</button>
+    <button type="button" class="fort-filter-tab{{ activeBlockedFilter == 'blacklisted' ? ' sel' : '' }}" data-filter="blacklisted" data-count="{{ countBlacklisted }}">{{ 'Blacklisted'|t('fort') }}</button>
+  </div>
+
+  <div id="fort-blocked-table" class="pane tablepane hairline" tabindex="-1">
+    {% include 'fort/dashboard/_blocked-table' with { blockedRows: blockedRows, compact: false, showFooter: true, footerCount: activeFooterCount, tzHint: fortDateColTzHint } only %}
+  </div>
+
+  <script>var fortInitialBlockedFilter = {{ activeBlockedFilter|json_encode|raw }};</script>
+  {% include 'fort/dashboard/_styles' %}
+  {% include 'fort/dashboard/_scripts' %}
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends "_layouts/cp" %}
+
+{% block content %}
+  {% set fortDateColTzHint = 'Dates use the system timezone ({tz}).'|t('fort', { tz: fortAppTimezone|default('') }) %}
+  {% if fortCurrentIpExcluded|default(false) %}
+    <div id="fort-excluded-ip-notice" class="pane tip">
+      <p>{{ 'Your IP ({ip}) is in the Fort excluded list. Events are recorded for audit purposes, but this IP will not trigger alerts, notifications, or blocks.'|t('fort', { ip: fortRequestClientIp|default('—') }) }}</p>
+    </div>
+  {% endif %}
+  {% set eventList = fortRecentEvents|default([]) %}
+
+  {# ── Resolve active filter from URL param ── #}
+  {% set _validEventFilters = ['all', 'ip_blocked', 'login_failure', 'http_rate_limited'] %}
+  {% set _requestedFilter = craft.app.request.getQueryParam('filter')|default('all') %}
+  {% set activeEventFilter = _requestedFilter in _validEventFilters ? _requestedFilter : 'all' %}
+
+  {# ── Compute tab counts ── #}
+  {% set countAll = eventList|length %}
+  {% set countBlocked = 0 %}
+  {% set countLogin = 0 %}
+  {% set countRate = 0 %}
+  {% for row in eventList %}
+    {% if row.type|default('') == 'ip_blocked' %}
+      {% set countBlocked = countBlocked + 1 %}
+    {% elseif row.type|default('') == 'login_failure' %}
+      {% set countLogin = countLogin + 1 %}
+    {% elseif row.type|default('') == 'http_rate_limited' %}
+      {% set countRate = countRate + 1 %}
+    {% endif %}
+  {% endfor %}
+
+  {# ── Filter tabs ── #}
+  <div id="fort-events-tabs" class="fort-filter-tabs">
+    <button type="button" class="fort-filter-tab{{ activeEventFilter == 'all' ? ' sel' : '' }}" data-filter="all" data-count="{{ countAll }}">{{ 'All'|t('fort') }}</button>
+    <button type="button" class="fort-filter-tab{{ activeEventFilter == 'ip_blocked' ? ' sel' : '' }}" data-filter="ip_blocked" data-count="{{ countBlocked }}">{{ 'Blocked IPs'|t('fort') }}</button>
+    <button type="button" class="fort-filter-tab{{ activeEventFilter == 'login_failure' ? ' sel' : '' }}" data-filter="login_failure" data-count="{{ countLogin }}">{{ 'Login'|t('fort') }}</button>
+    <button type="button" class="fort-filter-tab{{ activeEventFilter == 'http_rate_limited' ? ' sel' : '' }}" data-filter="http_rate_limited" data-count="{{ countRate }}">{{ 'Rate limit'|t('fort') }}</button>
+  </div>
+
+  <div id="fort-events-table" class="pane tablepane hairline">
+    {% include 'fort/dashboard/_events-table' with { eventRows: eventList, showFooter: true, footerId: 'fort-events-count', tzHint: fortDateColTzHint } only %}
+  </div>
+
+  <script>var fortInitialEventFilter = {{ activeEventFilter|json_encode|raw }};</script>
+  {% include 'fort/dashboard/_styles' %}
+  {% include 'fort/dashboard/_scripts' %}
+{% endblock %}

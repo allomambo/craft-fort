@@ -1,0 +1,230 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+
+{% block actionButton %}{% endblock %}
+
+{% block content %}
+  {% set fortDateColTzHint = 'Dates use the system timezone ({tz}).'|t('fort', { tz: fortAppTimezone|default('') }) %}
+  {% if fortCurrentIpExcluded|default(false) %}
+    <div id="fort-excluded-ip-notice" class="pane tip">
+      <p>{{ 'Your IP ({ip}) is in the Fort excluded list. Events are recorded for audit purposes, but this IP will not trigger alerts, notifications, or blocks.'|t('fort', { ip: fortRequestClientIp|default('—') }) }}</p>
+    </div>
+  {% endif %}
+  {% set counts = fortCounts24h|default({
+    login_failure: 0,
+    http_rate_limited: 0,
+    ip_blocked: 0,
+  }) %}
+  {% set latestAlerts = fortLatestAlertRows|default([]) %}
+  {% set latestBlocked = fortLatestBlockedRows|default([]) %}
+  {% set daily = fortDailyCounts|default({ login_failure: [], http_rate_limited: [], ip_blocked: [] }) %}
+  {% set tunables = fortTunables|default({}) %}
+  {% set gates = fortFeatureGates|default({ httpRateLimitEnabled: true, authLoggingEnabled: true }) %}
+
+  {% if gates.authLoggingEnabled and gates.httpRateLimitEnabled %}
+    {% set briefStatus = 'ok' %}
+  {% elseif gates.authLoggingEnabled or gates.httpRateLimitEnabled %}
+    {% set briefStatus = 'partial' %}
+  {% else %}
+    {% set briefStatus = 'off' %}
+  {% endif %}
+  <div class="fort-dashboard">
+  <div class="fort-brief fort-brief--{{ briefStatus }}">
+    <p class="fort-brief__headline">
+      <span class="fort-brief__badge"><svg class="fort-brief__icon" viewBox="0 0 512 512"><path d="M256 0c4.6 0 9.2 1 13.4 2.9L457.7 82.8c22 9.3 38.4 31 38.3 57.2c-.5 99.2-41.3 280.7-213.6 363.2c-16.7 8-36.1 8-52.8 0C57.3 420.7 16.5 239.2 16 140c-.1-26.2 16.3-47.9 38.3-57.2L242.7 2.9C246.8 1 251.4 0 256 0z" fill="currentColor"/></svg>Fort</span>
+      {% if gates.authLoggingEnabled and gates.httpRateLimitEnabled %}
+        {{ 'protects this site against login attacks and API abuse.'|t('fort') }}
+      {% elseif gates.authLoggingEnabled %}
+        {{ 'protects this site against login attacks.'|t('fort') }}
+      {% elseif gates.httpRateLimitEnabled %}
+        {{ 'protects this site against API abuse.'|t('fort') }}
+      {% else %}
+        {{ 'protection is currently disabled.'|t('fort') }}
+      {% endif %}
+    </p>
+    <p class="fort-brief__detail">
+      {% if gates.authLoggingEnabled and gates.httpRateLimitEnabled %}
+        {{ 'An IP is automatically blocked after {threshold} failed login attempts within {window} minutes. Each IP is also limited to {limit} requests per minute — if an IP triggers {alerts} rate-limit alerts within {alertWindow} minutes, it gets blocked. Blocks last {duration} minutes.'|t('fort', {
+          threshold: '<strong>' ~ tunables.failedLoginThreshold.effective|default(10) ~ '</strong>',
+          window: '<strong>' ~ tunables.failedLoginWindowMinutes.effective|default(15) ~ '</strong>',
+          limit: '<strong>' ~ tunables.maxRequestsPerIpPerMinute.effective|default(400) ~ '</strong>',
+          alerts: '<strong>' ~ tunables.httpRateLimitAlertsBeforeBlock.effective|default(1) ~ '</strong>',
+          alertWindow: '<strong>' ~ tunables.httpRateLimitAlertWindowMinutes.effective|default(60) ~ '</strong>',
+          duration: '<strong>' ~ tunables.defaultBlockDurationMinutes.effective|default(60) ~ '</strong>',
+        })|raw }}
+      {% elseif gates.authLoggingEnabled %}
+        {{ 'An IP is automatically blocked after {threshold} failed login attempts within {window} minutes. Blocks last {duration} minutes. HTTP rate limiting is currently disabled.'|t('fort', {
+          threshold: '<strong>' ~ tunables.failedLoginThreshold.effective|default(10) ~ '</strong>',
+          window: '<strong>' ~ tunables.failedLoginWindowMinutes.effective|default(15) ~ '</strong>',
+          duration: '<strong>' ~ tunables.defaultBlockDurationMinutes.effective|default(60) ~ '</strong>',
+        })|raw }}
+      {% elseif gates.httpRateLimitEnabled %}
+        {{ 'Each IP is limited to {limit} requests per minute — if an IP triggers {alerts} rate-limit alerts within {alertWindow} minutes, it gets blocked. Blocks last {duration} minutes. Authentication logging is currently disabled.'|t('fort', {
+          limit: '<strong>' ~ tunables.maxRequestsPerIpPerMinute.effective|default(400) ~ '</strong>',
+          alerts: '<strong>' ~ tunables.httpRateLimitAlertsBeforeBlock.effective|default(1) ~ '</strong>',
+          alertWindow: '<strong>' ~ tunables.httpRateLimitAlertWindowMinutes.effective|default(60) ~ '</strong>',
+          duration: '<strong>' ~ tunables.defaultBlockDurationMinutes.effective|default(60) ~ '</strong>',
+        })|raw }}
+      {% else %}
+        {{ 'Both authentication logging and HTTP rate limiting are currently disabled.'|t('fort') }}
+      {% endif %}
+    </p>
+    {% if not gates.authLoggingEnabled or not gates.httpRateLimitEnabled %}
+      <p class="fort-brief__warning">
+        {% if not gates.authLoggingEnabled and not gates.httpRateLimitEnabled %}
+          {{ 'Login protection and HTTP rate limiting are turned off. <a href="{url}">Enable them in Settings</a>.'|t('fort', { url: cpUrl('fort/settings') })|raw }}
+        {% elseif not gates.httpRateLimitEnabled %}
+          {{ 'HTTP rate limiting is turned off. <a href="{url}">Enable it in Settings</a>.'|t('fort', { url: cpUrl('fort/settings') })|raw }}
+        {% else %}
+          {{ 'Login protection is turned off. <a href="{url}">Enable it in Settings</a>.'|t('fort', { url: cpUrl('fort/settings') })|raw }}
+        {% endif %}
+      </p>
+    {% endif %}
+  </div>
+
+  {# Sparkline color: green = all clear, blue = moderate, red = concerning #}
+  {% macro loginColor(n) %}{% apply spaceless %}{% if n <= 5 %}#22c55e{% elseif n < 15 %}#3b82f6{% else %}#dc2626{% endif %}{% endapply %}{% endmacro %}
+  {% macro rateColor(n) %}{% apply spaceless %}{% if n <= 2 %}#22c55e{% elseif n < 10 %}#3b82f6{% else %}#dc2626{% endif %}{% endapply %}{% endmacro %}
+  {% macro blockColor(n) %}{% apply spaceless %}{% if n == 0 %}#22c55e{% elseif n < 5 %}#3b82f6{% else %}#dc2626{% endif %}{% endapply %}{% endmacro %}
+
+  <div id="fort-stats" class="grid">
+    <div class="item" data-colspan="1">
+      <div class="fort-stat fort-stat--login">
+        <div class="fort-stat__label light">{{ 'Login failures (24h)'|t('fort') }}</div>
+        <div class="fort-stat__value">{{ counts.login_failure }}</div>
+        <div class="fort-stat__chart">
+          <canvas class="fort-sparkline"
+                  data-values="{{ daily.login_failure|map(d => d.count)|json_encode }}"
+                  data-color="{{ _self.loginColor(counts.login_failure) }}"
+                  width="400" height="60"></canvas>
+        </div>
+        <div class="fort-stat__footer">
+          <a href="{{ fortAlertsLoginUrl|default(url('fort/alerts', {filter: 'login_threshold'})) }}">{{ 'View all'|t('fort') }} &rarr;</a>
+        </div>
+      </div>
+    </div>
+    <div class="item" data-colspan="1">
+      <div class="fort-stat fort-stat--rate">
+        <div class="fort-stat__label light">{{ 'HTTP rate limits (24h)'|t('fort') }}</div>
+        <div class="fort-stat__value">{{ counts.http_rate_limited }}</div>
+        <div class="fort-stat__chart">
+          <canvas class="fort-sparkline"
+                  data-values="{{ daily.http_rate_limited|map(d => d.count)|json_encode }}"
+                  data-color="{{ _self.rateColor(counts.http_rate_limited) }}"
+                  width="400" height="60"></canvas>
+        </div>
+        <div class="fort-stat__footer">
+          <a href="{{ fortAlertsRateUrl|default(url('fort/alerts', {filter: 'http_rate_limited'})) }}">{{ 'View all'|t('fort') }} &rarr;</a>
+        </div>
+      </div>
+    </div>
+    <div class="item" data-colspan="1">
+      <div class="fort-stat fort-stat--block">
+        <div class="fort-stat__label light">{{ 'IP blocks recorded (24h)'|t('fort') }}</div>
+        <div class="fort-stat__value">{{ counts.ip_blocked }}</div>
+        <div class="fort-stat__chart">
+          <canvas class="fort-sparkline"
+                  data-values="{{ daily.ip_blocked|map(d => d.count)|json_encode }}"
+                  data-color="{{ _self.blockColor(counts.ip_blocked) }}"
+                  width="400" height="60"></canvas>
+        </div>
+        <div class="fort-stat__footer">
+          <a href="{{ fortEventsBlockedUrl|default(url('fort/events', {filter: 'ip_blocked'})) }}">{{ 'View all'|t('fort') }} &rarr;</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% set configLabels = {
+    defaultBlockDurationMinutes: 'Block duration'|t('fort'),
+    permanentBlockAfterAutomaticBlocks: 'Blocks before permanent'|t('fort'),
+    failedLoginThreshold: 'Failed login threshold'|t('fort'),
+    failedLoginWindowMinutes: 'Failed login window'|t('fort'),
+    maxRequestsPerIpPerMinute: 'Rate limit per IP'|t('fort'),
+    httpRateLimitAlertsBeforeBlock: 'Alerts before block'|t('fort'),
+    httpRateLimitAlertWindowMinutes: 'Alert window'|t('fort'),
+  } %}
+  {% set configUnits = {
+    defaultBlockDurationMinutes: 'minutes'|t('fort'),
+    permanentBlockAfterAutomaticBlocks: 'blocks'|t('fort'),
+    failedLoginThreshold: 'failures'|t('fort'),
+    failedLoginWindowMinutes: 'minutes'|t('fort'),
+    maxRequestsPerIpPerMinute: 'req / min'|t('fort'),
+    httpRateLimitAlertsBeforeBlock: 'alerts'|t('fort'),
+    httpRateLimitAlertWindowMinutes: 'minutes'|t('fort'),
+  } %}
+
+  {% macro configRow(key, t, configLabels, configUnits, isDisabled) %}
+    <div class="fort-config__row{{ isDisabled ? ' fort-config__row--disabled' : '' }}">
+      <span class="fort-config__label">{{ configLabels[key]|default(t.label) }}</span>
+      <span class="fort-config__value">
+        {% if isDisabled %}
+          <span class="badge --config --gray">{{ 'Off'|t('fort') }}</span>
+          <span class="light">—</span>
+        {% else %}
+          {% if t.source == 'runtime' %}
+            <span class="badge --config --purple">{{ 'Runtime'|t('fort') }}</span>
+          {% elseif t.source == 'config' %}
+            <span class="badge --config --blue">{{ 'Config'|t('fort') }}{% if t.isConfigEnvSpecific|default(false) %} • {{ craft.app.env|default('production') }}{% endif %}</span>
+          {% endif %}
+          {{ t.effective }}{% if configUnits[key]|default %} {{ configUnits[key] }}{% endif %}
+        {% endif %}
+      </span>
+    </div>
+  {% endmacro %}
+
+  <div class="pane fort-config">
+    <div class="fort-config__head">
+      <h2 class="first">{{ 'Active configuration'|t('fort') }}</h2>
+      <div class="btngroup">
+        <button type="button" id="fort-open-runtime" class="btn small">{{ 'Edit'|t('fort') }}</button>
+        {% if fortHasAnyRuntimeOverride|default(false) %}
+          <button type="button" id="fort-clear-runtime" class="btn small">{{ 'Reset'|t('fort') }}</button>
+        {% endif %}
+      </div>
+    </div>
+
+    <h3 class="fort-config__section">{{ 'Login protection'|t('fort') }}</h3>
+    <div class="fort-config__list">
+      {{ _self.configRow('failedLoginThreshold', tunables.failedLoginThreshold, configLabels, configUnits, not gates.authLoggingEnabled) }}
+      {{ _self.configRow('failedLoginWindowMinutes', tunables.failedLoginWindowMinutes, configLabels, configUnits, not gates.authLoggingEnabled) }}
+    </div>
+
+    <h3 class="fort-config__section">{{ 'HTTP rate limiting'|t('fort') }}</h3>
+    <div class="fort-config__list">
+      {{ _self.configRow('maxRequestsPerIpPerMinute', tunables.maxRequestsPerIpPerMinute, configLabels, configUnits, not gates.httpRateLimitEnabled) }}
+      {{ _self.configRow('httpRateLimitAlertsBeforeBlock', tunables.httpRateLimitAlertsBeforeBlock, configLabels, configUnits, not gates.httpRateLimitEnabled) }}
+      {{ _self.configRow('httpRateLimitAlertWindowMinutes', tunables.httpRateLimitAlertWindowMinutes, configLabels, configUnits, not gates.httpRateLimitEnabled) }}
+    </div>
+
+    <h3 class="fort-config__section">{{ 'IP blocking'|t('fort') }}</h3>
+    <div class="fort-config__list">
+      {{ _self.configRow('defaultBlockDurationMinutes', tunables.defaultBlockDurationMinutes, configLabels, configUnits, false) }}
+      {{ _self.configRow('permanentBlockAfterAutomaticBlocks', tunables.permanentBlockAfterAutomaticBlocks, configLabels, configUnits, false) }}
+    </div>
+  </div>
+
+  <div>
+    <div class="flex flex-justify items-center gap-sm">
+      <h2 style="margin:0">{{ 'Latest blocked IPs'|t('fort') }}</h2>
+      <a href="{{ fortAllBlockedUrl|default(url('fort/blocked')) }}" class="btn">{{ 'View all blocked IPs'|t('fort') }}</a>
+    </div>
+    <div class="pane tablepane hairline">
+      {% include 'fort/dashboard/_blocked-table' with { blockedRows: latestBlocked, compact: false, tzHint: fortDateColTzHint } only %}
+    </div>
+  </div>
+
+  <div>
+    <div class="flex flex-justify items-center gap-sm">
+      <h2 style="margin:0">{{ 'Latest alerts'|t('fort') }}</h2>
+      <a href="{{ fortAllAlertsUrl|default(url('fort/alerts')) }}" class="btn">{{ 'View all alerts'|t('fort') }}</a>
+    </div>
+    <div class="pane tablepane hairline fort-overview-latest-alerts">
+      {% include 'fort/dashboard/_alerts-table' with { alertRows: latestAlerts, tzHint: fortDateColTzHint } only %}
+    </div>
+  </div>
+  </div>
+
+  {% include 'fort/dashboard/_styles' %}
+  {% include 'fort/dashboard/_scripts' %}
+{% endblock %}

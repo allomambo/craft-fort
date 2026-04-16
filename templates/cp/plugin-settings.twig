@@ -1,0 +1,186 @@
+{% requireAdmin false %}
+
+{% extends "_layouts/cp" %}
+
+{% set fortSettingsContext = fortSettingsContext|default('global-settings') %}
+{% set readOnly = readOnly ?? false %}
+
+{% if fortSettingsContext == 'cp-section' %}
+  {% set title = 'Settings'|t('app') %}
+  {% set docTitle = title ~ ' - ' ~ 'Fort'|t('fort') %}
+  {% set crumbs = [
+    { label: 'Fort'|t('fort'), url: url('fort/dashboard') },
+    { label: 'Settings'|t('app') },
+  ] %}
+{% else %}
+  {% set title = plugin.name %}
+  {% set docTitle = title ~ ' - ' ~ 'Plugins'|t('app') %}
+  {% set crumbs = [
+    { label: 'Settings'|t('app'), url: url('settings') },
+    { label: 'Plugins'|t('app'), url: url('settings/plugins') },
+  ] %}
+{% endif %}
+
+{% set fullPageForm = not readOnly %}
+
+{% set selectedTab = selectedTab ?? 'rateLimit' %}
+
+{% if fortSettingsContext == 'cp-section' %}
+  {% set fortSettingsPath = 'fort/settings' %}
+  {% set formActions = [
+    {
+      label: 'Save and continue editing'|t('app'),
+      redirect: (fortSettingsPath ~ '?tab=' ~ selectedTab)|hash,
+      shortcut: true,
+      retainScroll: true,
+    },
+  ] %}
+  {% set tabs = {
+    auth: { label: 'Authentication & logging'|t('fort'), url: url(fortSettingsPath, { tab: 'auth' }) },
+    rateLimit: { label: 'Rate limiting'|t('fort'), url: url(fortSettingsPath, { tab: 'rateLimit' }) },
+    ipBlocking: { label: 'IP blocking'|t('fort'), url: url(fortSettingsPath, { tab: 'ipBlocking' }) },
+    notifications: { label: 'Notifications'|t('fort'), url: url(fortSettingsPath, { tab: 'notifications' }) },
+    retention: { label: 'Data retention'|t('fort'), url: url(fortSettingsPath, { tab: 'retention' }) },
+    config: { label: 'Config file'|t('fort'), url: url(fortSettingsPath, { tab: 'config' }) },
+  } %}
+{% else %}
+  {% set formActions = [
+    {
+      label: 'Save and continue editing'|t('app'),
+      redirect: ("settings/plugins/#{plugin.handle}?tab=" ~ selectedTab)|hash,
+      shortcut: true,
+      retainScroll: true,
+    },
+  ] %}
+  {% set tabs = {
+    auth: { label: 'Authentication & logging'|t('fort'), url: url('settings/plugins/' ~ plugin.handle, { tab: 'auth' }) },
+    rateLimit: { label: 'Rate limiting'|t('fort'), url: url('settings/plugins/' ~ plugin.handle, { tab: 'rateLimit' }) },
+    ipBlocking: { label: 'IP blocking'|t('fort'), url: url('settings/plugins/' ~ plugin.handle, { tab: 'ipBlocking' }) },
+    notifications: { label: 'Notifications'|t('fort'), url: url('settings/plugins/' ~ plugin.handle, { tab: 'notifications' }) },
+    retention: { label: 'Data retention'|t('fort'), url: url('settings/plugins/' ~ plugin.handle, { tab: 'retention' }) },
+    config: { label: 'Config file'|t('fort'), url: url('settings/plugins/' ~ plugin.handle, { tab: 'config' }) },
+  } %}
+{% endif %}
+
+{% if readOnly %}
+  {% set contentNotice = readOnlyNotice() %}
+{% endif %}
+
+{% block content %}
+  {% if not readOnly %}
+    {{ actionInput('plugins/save-plugin-settings') }}
+    {{ hiddenInput('pluginHandle', plugin.handle) }}
+    {% if fortSettingsContext == 'cp-section' %}
+      {{ redirectInput('fort/settings') }}
+    {% else %}
+      {{ redirectInput('settings') }}
+    {% endif %}
+  {% endif %}
+  {% set overrideCount = fortActiveRuntimeOverrides|default([])|length %}
+  {% if overrideCount %}
+    <div class="pane tip">
+      <p>{{ '{count, plural, =1{1 runtime override is active and takes precedence over plugin settings and <code>config/fort.php</code> below.} other{# runtime overrides are active and take precedence over plugin settings and <code>config/fort.php</code> below.}}'|t('fort', { count: overrideCount })|raw }}</p>
+      <p><a class="go" href="{{ url('fort/dashboard') }}">{{ 'Go to dashboard'|t('fort') }}</a></p>
+    </div>
+  {% endif %}
+  {{ settingsHtml|raw }}
+
+  {% js %}
+  (function () {
+    var CLEAR_URL = {{ cpUrl('fort/clear-events')|json_encode|raw }};
+    var CONFIRM_WORD = {{ 'DELETE'|t('fort')|json_encode|raw }};
+    var MSG_DONE = {{ 'Events cleared.'|t('fort')|json_encode|raw }};
+    var MSG_FAIL = {{ 'Could not clear events.'|t('fort')|json_encode|raw }};
+    var LBL_CLEAR = {{ 'Clear all events'|t('fort')|json_encode|raw }};
+    var LBL_CANCEL = {{ 'Cancel'|t('app')|json_encode|raw }};
+    var LBL_PROMPT = {{ 'Type "{word}" to confirm'|t('fort', { word: 'DELETE'|t('fort') })|json_encode|raw }};
+    var LBL_WARNING = {{ 'This will permanently delete every security event and alert. Blocked IP rows are not affected.'|t('fort')|json_encode|raw }};
+
+    /* ── Inject the trigger button (created by JS, not in the form HTML) ── */
+    var placeholder = document.querySelector('.js-fort-clear-events-slot');
+    if (!placeholder) return;
+    var openBtn = document.createElement('span');
+    openBtn.className = 'btn';
+    openBtn.setAttribute('role', 'button');
+    openBtn.setAttribute('tabindex', '0');
+    openBtn.textContent = LBL_CLEAR;
+    openBtn.style.cursor = 'pointer';
+    placeholder.appendChild(openBtn);
+
+    /* ── Build modal body as jQuery element for Garnish.Modal ── */
+    function buildModalBody() {
+      var $body = $('<div class="modal fitted" style="max-width:440px">' +
+        '<div class="body" style="padding:24px 28px;overflow:visible">' +
+          '<h2 style="margin:0 0 8px">' + $('<span>').text(LBL_CLEAR).html() + '</h2>' +
+          '<p class="light" style="margin:0 0 16px">' + $('<span>').text(LBL_WARNING).html() + '</p>' +
+          '<label class="heading" style="display:block;margin-bottom:6px">' + $('<span>').text(LBL_PROMPT).html() + '</label>' +
+          '<input type="text" class="text fullwidth fort-confirm-input" autocomplete="off" spellcheck="false">' +
+        '</div>' +
+        '<div class="footer">' +
+          '<div class="flex flex-nowrap" style="justify-content:flex-end">' +
+            '<button type="button" class="btn fort-clear-cancel">' + $('<span>').text(LBL_CANCEL).html() + '</button>' +
+            '<button type="button" class="btn submit disabled fort-clear-confirm" disabled>' + $('<span>').text(LBL_CLEAR).html() + '</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>');
+      return $body;
+    }
+
+    /* ── Open modal ── */
+    openBtn.addEventListener('click', function () {
+      var $body = buildModalBody();
+      var modal = new Garnish.Modal($body, {
+        autoShow: true,
+        closeOtherModals: true,
+        hideOnEsc: true,
+        hideOnShadeClick: true,
+      });
+
+      var $input = $body.find('.fort-confirm-input');
+      var $deleteBtn = $body.find('.fort-clear-confirm');
+      var $cancelBtn = $body.find('.fort-clear-cancel');
+
+      setTimeout(function () { $input.focus(); }, 50);
+
+      $input.on('input', function () {
+        var match = $input.val().trim() === CONFIRM_WORD;
+        $deleteBtn.prop('disabled', !match);
+        $deleteBtn.toggleClass('disabled', !match);
+      });
+
+      $cancelBtn.on('click', function () {
+        modal.hide();
+      });
+
+      $deleteBtn.on('click', function () {
+        $deleteBtn.prop('disabled', true).text('…');
+        var body = {};
+        body[Craft.csrfTokenName] = Craft.csrfTokenValue;
+        fetch(CLEAR_URL, {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-Token': Craft.csrfTokenValue,
+          },
+          body: JSON.stringify(body),
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          modal.hide();
+          if (j.success) {
+            Craft.cp.displayNotice(MSG_DONE);
+          } else {
+            Craft.cp.displayError(MSG_FAIL);
+          }
+        })
+        .catch(function () {
+          modal.hide();
+          Craft.cp.displayError(MSG_FAIL);
+        });
+      });
+    });
+  })();
+  {% endjs %}
+{% endblock %}

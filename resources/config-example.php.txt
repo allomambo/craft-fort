@@ -1,0 +1,57 @@
+<?php
+
+/**
+ * Fort — optional config overrides (copy to config/fort.php).
+ *
+ * Values are merged after Control Panel / project config. Use per-environment keys
+ * (`*` for all, or your CRAFT_ENVIRONMENT such as `production`, `staging`, `local`).
+ *
+ * Each key maps to {@see \allomambo\fort\models\Settings}; boolean lightswitches use true/false.
+ */
+
+return [
+    '*' => [
+        // --- HTTP rate limiting ---
+        'httpRateLimitEnabled' => true,
+        'maxRequestsPerIpPerMinute' => 400,
+        'httpRateLimitAlertsBeforeBlock' => 1,
+        'httpRateLimitAlertWindowMinutes' => 60,
+        'excludedIps' => [
+            '127.0.0.1',
+            '10.0.0.0/8',
+        ],
+        'excludeCpFromHttpRateLimit' => true,
+        'excludeCpResourcesFromHttpRateLimit' => true,
+
+        // --- Login protection & failed-login alert threshold ---
+        'authLoggingEnabled' => true,
+        'failedLoginThresholdPerIp' => 10,
+        'failedLoginWindowMinutes' => 15,
+
+        // --- IP blocking (temporary block length & permanent escalation) ---
+        'defaultBlockDurationMinutes' => 60,
+        'permanentBlockAfterAutomaticBlocks' => 10,
+        'autoSweepExpiredIpBlocks' => true,
+
+        // --- Notifications & digests ---
+        'significantEventEmailEnabled' => true,
+        'dailyDigestEmailEnabled' => false,
+        'dailyDigestHour' => 8,
+        'weeklyDigestEmailEnabled' => false,
+        'weeklyDigestDayOfWeek' => 1,
+        'digestSendOnActivity' => true,
+        'maintainerUserIds' => [],
+        // 'maintainerUserIds' => [1, 2],
+        'webhookUrl' => '',
+        // 'webhookUrl' => 'https://example.com/hooks/fort',
+        'webhookOnSignificantEvent' => false,
+
+        // --- Security event & alert retention (days) ---
+        'eventRetentionDays' => 90,
+    ],
+
+    // 'production' => [
+    //     'maxRequestsPerIpPerMinute' => 200,
+    //     'webhookUrl' => 'https://hooks.example.com/fort',
+    // ],
+];

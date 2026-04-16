@@ -1,0 +1,42 @@
+{% import "_includes/forms" as forms %}
+
+<form class="modal fitted fort-block-ip-modal" accept-charset="UTF-8">
+  <header class="header">
+    <h1 class="left">{{ 'Block an IP'|t('fort') }}</h1>
+  </header>
+
+  <div class="body">
+    <div class="fort-add-block-fields">
+      {{ forms.textField({
+        first: true,
+        label: 'IP address'|t('fort'),
+        id: 'fort-manual-ip',
+        name: 'ip',
+        value: '',
+        autocomplete: false,
+        placeholder: '203.0.113.10',
+      }) }}
+      {{ forms.textareaField({
+        label: 'Notes (optional)'|t('fort'),
+        id: 'fort-manual-notes',
+        name: 'notes',
+        value: '',
+        rows: 2,
+      }) }}
+      {{ forms.lightswitchField({
+        label: 'Blacklist this IP'|t('fort'),
+        id: 'fort-manual-permanent',
+        name: 'permanent',
+        on: false,
+        instructions: 'Block permanently with no automatic expiry.'|t('fort'),
+      }) }}
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="buttons right">
+      <button type="button" class="btn fort-block-ip-cancel">{{ 'Cancel'|t('app') }}</button>
+      <button type="button" class="btn submit fort-block-ip-save">{{ 'Add block'|t('fort') }}</button>
+    </div>
+  </footer>
+</form>

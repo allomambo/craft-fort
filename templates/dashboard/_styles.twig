@@ -1,0 +1,355 @@
+{% css %}
+/* Dashboard layout */
+.fort-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+/* Compact meta HUD (avoid .readable — it inflates body copy size in the CP) */
+.fort-alert-info-hud {
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+.fort-alert-info-hud .data {
+  font-size: inherit;
+}
+.fort-alert-info-hud .data th {
+  width: 45%;
+  vertical-align: top;
+  font-size: inherit;
+  font-weight: 600;
+}
+.fort-alert-info-hud .data td {
+  font-size: inherit;
+}
+.fort-alert-info-hud code.break-words {
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+/* Stat cards — clean white card style */
+.fort-stat {
+  padding: 20px 24px 16px;
+  background: #fff;
+  border: 1px solid var(--hairline-color, #e3e5e8);
+  border-radius: var(--large-border-radius, 8px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+.fort-stat__label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+.fort-stat__value {
+  font-size: 2.25rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #1a1a1a;
+  font-variant-numeric: tabular-nums;
+}
+.fort-stat__chart {
+  margin-top: 8px;
+}
+.fort-sparkline {
+  display: block;
+  width: 100%;
+  height: 48px;
+}
+.fort-stat__footer {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--hairline-color, #e3e5e8);
+}
+/* Summary brief */
+.fort-brief {
+  border-radius: var(--large-border-radius, 8px);
+  padding: 24px 28px;
+}
+.fort-brief--ok {
+  background: linear-gradient(135deg, #ecfdf5 0%, #fff 30%);
+  border: 1px solid var(--hairline-color, #e3e5e8);
+}
+.fort-brief--partial {
+  background: linear-gradient(135deg, #fefce8 0%, #fff 30%);
+  border: 1px solid var(--hairline-color, #e3e5e8);
+}
+.fort-brief--off {
+  background: linear-gradient(135deg, #fee2e2 0%, #fff 30%);
+  border: 1px solid var(--hairline-color, #e3e5e8);
+}
+.fort-brief__warning {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  margin: 10px 0 0;
+  color: #4b5563;
+}
+.fort-brief__warning a {
+  color: var(--link-color, #3366cc);
+  text-decoration: none;
+}
+.fort-brief__warning a:hover {
+  text-decoration: underline;
+}
+.fort-brief__headline {
+  font-size: 1.125rem;
+  font-weight: 400;
+  line-height: 1.6;
+  margin: 0 0 10px;
+  color: #1a1a1a;
+}
+.fort-brief__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px dashed #1a1a1a;
+  border-radius: 4px;
+  padding: 0px 8px 0px 6px;
+  vertical-align: baseline;
+}
+.fort-brief__icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: #1a1a1a;
+}
+.fort-brief__detail {
+  font-size: 0.875rem;
+  line-height: 1.7;
+  margin: 0;
+  color: #374151;
+}
+.fort-brief__detail strong {
+  color: #111827;
+  font-weight: 700;
+}
+/* Active configuration */
+.pane.fort-config {
+  background: #fff !important;
+}
+.fort-config__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.fort-config__section {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9ca3af;
+  margin: 0;
+  padding: 16px 0 8px;
+  border-bottom: 1px solid var(--hairline-color, #e3e5e8);
+}
+.fort-config__list + .fort-config__section {
+  padding-top: 24px;
+}
+.fort-config__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px dotted var(--hairline-color, #e3e5e8);
+  font-size: 0.875rem;
+}
+.fort-config__row:last-child {
+  border-bottom: none;
+}
+.fort-config__row--disabled {
+  color: var(--gray-400, #9ca3af);
+}
+.fort-config__label {
+  color: #374151;
+}
+.fort-config__row--disabled .fort-config__label {
+  color: var(--gray-400, #9ca3af);
+}
+.fort-config__value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #1a1a1a;
+  font-variant-numeric: tabular-nums;
+}
+.fort-config__row--disabled .fort-config__value {
+  font-weight: 400;
+}
+/* Fort badge colors (extend Craft .badge) */
+.badge.--purple { border-color: var(--violet-100); background: var(--violet-100); color: var(--violet-800); }
+.badge.--blue   { border-color: var(--blue-100); background: var(--blue-100); color: var(--blue-800);   }
+.badge.--gray   { border-color: var(--gray-100); background: var(--gray-100); color: var(--gray-700);   }
+.badge.--black  { border-color: var(--gray-800); background: var(--gray-800); color: #fff; }
+.badge.--outline  { border-color: var(--gray-500); background: transparent; color: var(--gray-500); --border-style: dashed; }
+.badge code { color: inherit; }
+.badge.--config {
+  font-size: 0.625rem;
+  font-weight: 400;
+  text-transform: uppercase;
+  padding: 4px 6px;
+  line-height: 1;
+  height: auto;
+  border-radius: 4px;
+}
+.badge.--ip {
+  font-size: inherit;
+  font-weight: inherit;
+  text-transform: none;
+  letter-spacing: normal;
+  height: auto;
+  line-height: inherit;
+  min-width: 0;
+  border-radius: 4px;
+  border-width: 1px;
+  border-style: var(--border-style, solid);
+}
+.fort-ip-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.fort-ip-copy {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  min-height: 0;
+  height: 100%;
+  border: none;
+  background: none;
+  color: var(--gray-500, #6b7280);
+  cursor: pointer;
+  border-radius: 3px;
+  line-height: 1;
+}
+.fort-ip-wrap:hover .fort-ip-copy,
+.fort-ip-copy:focus-visible {
+  display: inline-flex;
+}
+.fort-ip-copy:hover {
+  color: var(--gray-700, #374151);
+  background: var(--gray-100, #e5e7eb);
+}
+.fort-ip-copy-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+}
+.fort-ip-copy-icon svg {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+
+.fort-block-ip-modal {
+  max-width: 480px;
+  max-height: 85vh;
+}
+.fort-runtime-modal {
+  max-width: 720px;
+  max-height: 85vh;
+}
+.fort-runtime-modal > .body {
+  max-height: calc(85vh - 110px);
+  overflow-y: auto;
+}
+.fort-runtime-fields h3 {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9ca3af;
+  margin: 0;
+  padding: 16px 0 8px;
+  border-bottom: 1px solid var(--hairline-color, #e3e5e8);
+}
+.fort-runtime-fields h3:first-child {
+  padding-top: 0;
+}
+.fort-runtime-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+}
+.fort-runtime-row > .field {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0 !important;
+  padding-top: 0 !important;
+  margin-block: 16px !important;
+}
+/* Input + unit suffix (also registered inline via forms/text.twig for settings; duplicated here for the async runtime modal) */
+.fort-unit-flex {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+}
+.fort-unit-flex > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+.fort-unit-flex > div:first-child .text {
+  border-end-end-radius: 0;
+  border-start-end-radius: 0;
+}
+.fort-unit-flex > [aria-hidden] {
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  background: var(--gray-050, hsl(212, 60%, 97%));
+  border: var(--input-border, 1px solid hsl(212, 25%, 85%));
+  border-inline-start: none;
+  border-end-end-radius: var(--input-border-radius, var(--radius-lg, 3px));
+  border-start-end-radius: var(--input-border-radius, var(--radius-lg, 3px));
+  white-space: nowrap;
+  font-size: 0.875rem;
+  color: var(--medium-text-color, var(--fg-subtle, #596673));
+  line-height: 1;
+}
+/* Filter tabs */
+.fort-filter-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+.fort-filter-tab {
+  display: inline-block;
+  padding: 7px 14px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-color, #3f4d5a);
+  background: none;
+  border: none;
+  border-radius: var(--medium-border-radius, 5px);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.fort-filter-tab:hover {
+  background: var(--gray-050, #f3f4f6);
+}
+.fort-filter-tab.sel {
+  background: var(--gray-100, #e5e7eb);
+  /* font-weight: 600; */
+  color: var(--text-color, #1a1a1a);
+}
+/* Fixed-width time column — min-width keeps columns stable across filters */
+.fort-col-time {
+  white-space: nowrap;
+  width: 1%;
+  min-width: 18ch;
+}
+/* Fixed-width IP column */
+.fort-col-ip {
+  white-space: nowrap;
+  width: 1%;
+  min-width: 19ch;
+}
+/* Table footer */
+.fort-table-footer {
+  padding: 10px 14px;
+  background: var(--gray-050, #f9fafb);
+}
+{% endcss %}
