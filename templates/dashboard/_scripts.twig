@@ -54,6 +54,9 @@
   function fieldSuffixVal($scope, fieldName) {
     var $el = $scope.find('[name$="[' + fieldName + ']"]');
     if (!$el.length) {
+      $el = $scope.find('[name="' + fieldName + '"]');
+    }
+    if (!$el.length) {
       return null;
     }
     var v = $el.val();
