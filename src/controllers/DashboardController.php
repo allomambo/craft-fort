@@ -354,7 +354,7 @@ class DashboardController extends Controller
         $ip = trim((string) Craft::$app->getRequest()->getBodyParam('ip'));
         $notes = Craft::$app->getRequest()->getBodyParam('notes');
 
-        if ($ip === '' || filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_IPV6) === false) {
+        if (!IpHelper::isValidIp($ip)) {
             $this->response->setStatusCode(400);
 
             return $this->asJson(['success' => false, 'message' => Craft::t('fort', 'Enter a valid IPv4 or IPv6 address.')]);
@@ -387,7 +387,7 @@ class DashboardController extends Controller
         $this->requireAcceptsJson();
 
         $ip = trim((string) Craft::$app->getRequest()->getBodyParam('ip'));
-        if ($ip === '' || filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_IPV6) === false) {
+        if (!IpHelper::isValidIp($ip)) {
             $this->response->setStatusCode(400);
 
             return $this->asJson(['success' => false, 'message' => Craft::t('fort', 'Enter a valid IPv4 or IPv6 address.')]);
@@ -412,7 +412,7 @@ class DashboardController extends Controller
         $this->requireAcceptsJson();
 
         $ip = trim((string) Craft::$app->getRequest()->getBodyParam('ip'));
-        if ($ip === '' || filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_IPV6) === false) {
+        if (!IpHelper::isValidIp($ip)) {
             $this->response->setStatusCode(400);
 
             return $this->asJson(['success' => false, 'message' => Craft::t('fort', 'Enter a valid IPv4 or IPv6 address.')]);
