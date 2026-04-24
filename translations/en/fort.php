@@ -198,7 +198,7 @@ return [
     'When enabled, Fort periodically updates the database so expired temporary blocks are marked inactive without waiting for each IP to visit the site again. When disabled, blocks are only cleared lazily when the blocked IP makes a new request.' => 'When enabled, Fort periodically updates the database so expired temporary blocks are marked inactive without waiting for each IP to visit the site again. When disabled, blocks are only cleared lazily when the blocked IP makes a new request.',
     'Blocks before permanent' => 'Blocks before permanent',
     'Automatic blocks before permanent override' => 'Automatic blocks before permanent override',
-    'When cumulative automatic blocks for an IP reach this count, the block becomes permanent until you unblock it. After each unblock from permanent, the next threshold increases by the same amount (e.g. 10 → 20 → 30) without resetting the block counter.' => 'Automatic blocks before the IP is permanently blocked.',
+    'Automatic blocks before the IP is permanently blocked.' => 'Automatic blocks before the IP is permanently blocked.',
     'After this threshold, the block becomes permanent until manual unblock. The threshold then increases by the same amount (e.g. 10 → 20 → 30).' => 'After this threshold, the block becomes permanent until manual unblock. The threshold then increases by the same amount (e.g. 10 → 20 → 30).',
     'Empty = use plugin Settings value.' => 'Empty = use plugin Settings value.',
     'Login failure' => 'Login failure',

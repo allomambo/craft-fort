@@ -198,7 +198,7 @@ return [
     'When enabled, Fort periodically updates the database so expired temporary blocks are marked inactive without waiting for each IP to visit the site again. When disabled, blocks are only cleared lazily when the blocked IP makes a new request.' => 'Si activé, Fort met périodiquement à jour la base de données pour que les blocages temporaires expirés soient marqués inactifs sans attendre que chaque IP revisite le site. Si désactivé, les blocages ne sont effacés que lorsque l\'IP bloquée effectue une nouvelle requête.',
     'Blocks before permanent' => 'Blocages avant permanent',
     'Automatic blocks before permanent override' => 'Blocages automatiques avant permanent',
-    'When cumulative automatic blocks for an IP reach this count, the block becomes permanent until you unblock it. After each unblock from permanent, the next threshold increases by the same amount (e.g. 10 → 20 → 30) without resetting the block counter.' => 'Blocages automatiques avant que l\'IP ne soit bloquée définitivement.',
+    'Automatic blocks before the IP is permanently blocked.' => 'Blocages automatiques avant que l\'IP ne soit bloquée définitivement.',
     'After this threshold, the block becomes permanent until manual unblock. The threshold then increases by the same amount (e.g. 10 → 20 → 30).' => 'Au-delà de ce seuil, le blocage devient permanent jusqu\'à déblocage manuel. Le seuil augmente ensuite du même montant (p. ex. 10 → 20 → 30).',
     'Empty = use plugin Settings value.' => 'Vide = valeur des paramètres du plugiciel.',
     'Login failure' => 'Échec de connexion',
