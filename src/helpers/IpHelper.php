@@ -249,6 +249,24 @@ final class IpHelper
     }
 
     /**
+     * True when the entry is a valid bare IPv4 or IPv6 address.
+     *
+     * Centralized so every caller (controllers, services, validators) shares
+     * the same flag combination and we never accidentally reject a valid IP
+     * because of an incorrect FILTER_FLAG_IPV4 / FILTER_FLAG_IPV6 mix.
+     */
+    public static function isValidIp(string $ip): bool
+    {
+        $ip = trim($ip);
+        if ($ip === '') {
+            return false;
+        }
+
+        // FILTER_VALIDATE_IP without family flags accepts both IPv4 and IPv6.
+        return filter_var($ip, FILTER_VALIDATE_IP) !== false;
+    }
+
+    /**
      * True when the entry is a valid bare IP (IPv4 or IPv6) or a valid IPv4/IPv6 CIDR.
      */
     public static function isValidCidrOrIp(string $entry): bool
@@ -277,6 +295,6 @@ final class IpHelper
             return false;
         }
 
-        return filter_var($entry, FILTER_VALIDATE_IP) !== false;
+        return self::isValidIp($entry);
     }
 }
