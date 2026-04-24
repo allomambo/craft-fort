@@ -50,5 +50,11 @@
             "craftcms/plugin-installer": true,
             "yiisoft/yii2-composer": true
         }
+    },
+    "scripts": {
+        "release": "bash scripts/release.sh"
+    },
+    "scripts-descriptions": {
+        "release": "Cut a new plugin release. Usage: composer release -- [--dry-run] [patch|minor|major|alpha|beta|stable]"
     }
 }
