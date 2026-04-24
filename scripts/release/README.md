@@ -1,6 +1,6 @@
 # Release tooling (internal)
 
-Internal documentation for the `scripts/release.sh` automation.
+Internal documentation for the `scripts/release/index.sh` automation.
 
 The corresponding shipped Composer package excludes this directory via `.gitattributes` (`/scripts export-ignore`), so end-users never see it.
 
@@ -26,8 +26,8 @@ composer release -- patch --dry-run
 composer release -- alpha --dry-run
 
 # Equivalent direct invocations (no Composer)
-./scripts/release.sh patch
-./scripts/release.sh patch --dry-run
+./scripts/release/index.sh patch
+./scripts/release/index.sh patch --dry-run
 ```
 
 The `--` between `composer release` and the bump type is **only required when passing flags** like `--dry-run`. Plain bumps (`composer release patch`) do not need it.
@@ -60,7 +60,7 @@ The script assumes Git Flow-lite:
 - **`main`** — stable history. Only updated by stable releases.
 - **`release/v<X.Y.Z>`** — short-lived. Created from `dev`, merged to `main`, back-merged to `dev`, then deleted.
 
-Branch names are configurable at the top of `scripts/release.sh` (`MAIN_BRANCH`, `DEV_BRANCH`).
+Branch names are configurable at the top of `scripts/release/index.sh` (`MAIN_BRANCH`, `DEV_BRANCH`).
 
 ---
 
@@ -193,7 +193,7 @@ git checkout -- composer.json CHANGELOG.md
 
 ## Maintaining the script
 
-- `MAIN_BRANCH` / `DEV_BRANCH` constants live at the top of `scripts/release.sh`.
+- `MAIN_BRANCH` / `DEV_BRANCH` constants live at the top of `scripts/release/index.sh`.
 - The script uses `set -euo pipefail` — any failed command halts execution.
 - When adding new mutating steps, wrap them in the `run "..."` helper so `--dry-run` keeps working.
 - Tag lookups distinguish `PREV_TAG` (any most-recent tag, used for GitHub Release notes scope) from `PREV_STABLE_TAG` (most recent stable, used for CHANGELOG scope).

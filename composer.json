@@ -54,7 +54,7 @@
     }
   },
   "scripts": {
-    "release": "bash scripts/release.sh"
+    "release": "bash scripts/release/index.sh"
   },
   "scripts-descriptions": {
     "release": "Cut a new plugin release. Usage: composer release -- [--dry-run] [patch|minor|major|alpha|beta|stable]"
