@@ -352,7 +352,11 @@ if [[ "$DRY_RUN" == "1" ]]; then
   fi
   echo "  ----------------------------------------"
 else
-  gh release create "$NEW_TAG" --title "$NEW_TAG" --notes "$RELEASE_NOTES" "${GH_FLAGS[@]}"
+  # Capture stdout (the release URL) and detach stdin so gh's TUI stack
+  # does not probe the terminal for OSC 11 / cursor position. Without this,
+  # the terminal's escape-sequence replies leak into the visible output.
+  RELEASE_URL=$(gh release create "$NEW_TAG" --title "$NEW_TAG" --notes "$RELEASE_NOTES" "${GH_FLAGS[@]}" </dev/null)
+  echo "  $RELEASE_URL"
 fi
 
 # ---- cleanup release branch (stable only) ----
