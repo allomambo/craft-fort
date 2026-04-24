@@ -19,6 +19,7 @@
         }
     ],
     "support": {
+        "email": "support@mambomambo.ca",
         "issues": "https://github.com/allomambo/craft-fort/issues",
         "source": "https://github.com/allomambo/craft-fort",
         "docs": "https://github.com/allomambo/craft-fort#readme"
@@ -38,6 +39,7 @@
         "class": "allomambo\\fort\\Plugin",
         "developer": "MamboMambo",
         "developerUrl": "https://mambomambo.ca",
+        "developerEmail": "support@mambomambo.ca",
         "documentationUrl": "https://github.com/allomambo/craft-fort",
         "changelogUrl": "https://raw.githubusercontent.com/allomambo/craft-fort/main/CHANGELOG.md"
     },
