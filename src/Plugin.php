@@ -376,7 +376,7 @@ class Plugin extends BasePlugin
     }
 
     /**
-     * Absolute path to `plugins/fort/templates` (works even if [[getBasePath]] is wrong).
+     * Absolute path to the package's `templates/` directory.
      */
     public static function getTemplatesRoot(): string
     {
