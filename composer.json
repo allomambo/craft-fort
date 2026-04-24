@@ -2,7 +2,7 @@
   "name": "allomambo/craft-fort",
   "description": "Monitoring and protection for Craft CMS",
   "type": "craft-plugin",
-  "version": "1.0.0-alpha.1",
+  "version": "1.0.0-alpha.2",
   "license": "proprietary",
   "keywords": [
     "craft-plugin",
