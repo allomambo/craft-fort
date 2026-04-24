@@ -1,6 +1,6 @@
 {
     "name": "allomambo/craft-fort",
-    "description": "Fort: HTTP rate limiting and security event monitoring for Craft CMS",
+    "description": "Monitoring and protection for Craft CMS",
     "type": "craft-plugin",
     "version": "1.0.0",
     "license": "proprietary",
