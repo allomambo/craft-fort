@@ -253,8 +253,7 @@ echo ""
 
 # ---- confirmation (skipped in dry-run) ----
 if [[ "$DRY_RUN" != "1" ]]; then
-  read -p "❓ Proceed with this release? (y/n): " -n 1 -r
-  echo ""
+  read -p "❓ Proceed with this release? (y/n): " -r
   if [[ ! $REPLY =~ ^[Yy]$ ]]; then
     echo "❌ Release cancelled."
     exit 0
