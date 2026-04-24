@@ -1,62 +1,62 @@
 {
-    "name": "allomambo/craft-fort",
-    "description": "Monitoring and protection for Craft CMS",
-    "type": "craft-plugin",
-    "version": "1.0.0",
-    "license": "proprietary",
-    "keywords": [
-        "craft-plugin",
-        "security",
-        "rate-limiting",
-        "ip-blocking",
-        "firewall",
-        "monitoring"
-    ],
-    "authors": [
-        {
-            "name": "Maxime Lafrenière",
-            "homepage": "https://github.com/jesuismaxime"
-        }
-    ],
-    "support": {
-        "email": "support@mambomambo.ca",
-        "issues": "https://github.com/allomambo/craft-fort/issues",
-        "source": "https://github.com/allomambo/craft-fort",
-        "docs": "https://github.com/allomambo/craft-fort#readme"
-    },
-    "require": {
-        "php": "^8.2",
-        "craftcms/cms": "^5.0.0"
-    },
-    "autoload": {
-        "psr-4": {
-            "allomambo\\fort\\": "src/"
-        }
-    },
-    "extra": {
-        "name": "Fort",
-        "handle": "fort",
-        "class": "allomambo\\fort\\Plugin",
-        "developer": "MamboMambo",
-        "developerUrl": "https://mambomambo.ca",
-        "developerEmail": "support@mambomambo.ca",
-        "documentationUrl": "https://github.com/allomambo/craft-fort",
-        "changelogUrl": "https://raw.githubusercontent.com/allomambo/craft-fort/main/CHANGELOG.md"
-    },
-    "config": {
-        "sort-packages": true,
-        "platform": {
-            "php": "8.2"
-        },
-        "allow-plugins": {
-            "craftcms/plugin-installer": true,
-            "yiisoft/yii2-composer": true
-        }
-    },
-    "scripts": {
-        "release": "bash scripts/release.sh"
-    },
-    "scripts-descriptions": {
-        "release": "Cut a new plugin release. Usage: composer release -- [--dry-run] [patch|minor|major|alpha|beta|stable]"
+  "name": "allomambo/craft-fort",
+  "description": "Monitoring and protection for Craft CMS",
+  "type": "craft-plugin",
+  "version": "1.0.0-alpha.1",
+  "license": "proprietary",
+  "keywords": [
+    "craft-plugin",
+    "security",
+    "rate-limiting",
+    "ip-blocking",
+    "firewall",
+    "monitoring"
+  ],
+  "authors": [
+    {
+      "name": "Maxime Lafrenière",
+      "homepage": "https://github.com/jesuismaxime"
     }
+  ],
+  "support": {
+    "email": "support@mambomambo.ca",
+    "issues": "https://github.com/allomambo/craft-fort/issues",
+    "source": "https://github.com/allomambo/craft-fort",
+    "docs": "https://github.com/allomambo/craft-fort#readme"
+  },
+  "require": {
+    "php": "^8.2",
+    "craftcms/cms": "^5.0.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "allomambo\\fort\\": "src/"
+    }
+  },
+  "extra": {
+    "name": "Fort",
+    "handle": "fort",
+    "class": "allomambo\\fort\\Plugin",
+    "developer": "MamboMambo",
+    "developerUrl": "https://mambomambo.ca",
+    "developerEmail": "support@mambomambo.ca",
+    "documentationUrl": "https://github.com/allomambo/craft-fort",
+    "changelogUrl": "https://raw.githubusercontent.com/allomambo/craft-fort/main/CHANGELOG.md"
+  },
+  "config": {
+    "sort-packages": true,
+    "platform": {
+      "php": "8.2"
+    },
+    "allow-plugins": {
+      "craftcms/plugin-installer": true,
+      "yiisoft/yii2-composer": true
+    }
+  },
+  "scripts": {
+    "release": "bash scripts/release.sh"
+  },
+  "scripts-descriptions": {
+    "release": "Cut a new plugin release. Usage: composer release -- [--dry-run] [patch|minor|major|alpha|beta|stable]"
+  }
 }
