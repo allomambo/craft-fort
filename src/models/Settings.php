@@ -77,6 +77,12 @@ class Settings extends Model
 
     public int $eventRetentionDays = 90;
 
+    /**
+     * When true, the attempted login is hashed and the client IP is masked before Fort stores
+     * an event/alert or sends it out by email or webhook. Only affects data written from now on.
+     */
+    public bool $anonymizePii = false;
+
     public function beforeValidate(): bool
     {
         // Lightswitches POST '' when off; normalize for boolean rules.
@@ -92,6 +98,7 @@ class Settings extends Model
                 'digestSendOnActivity',
                 'autoSweepExpiredIpBlocks',
                 'webhookOnSignificantEvent',
+                'anonymizePii',
             ] as $boolAttr
         ) {
             $v = $this->$boolAttr ?? null;
@@ -108,7 +115,7 @@ class Settings extends Model
     public function rules(): array
     {
         return [
-            [['httpRateLimitEnabled', 'excludeCpFromHttpRateLimit', 'excludeCpResourcesFromHttpRateLimit', 'authLoggingEnabled', 'autoSweepExpiredIpBlocks', 'significantEventEmailEnabled', 'dailyDigestEmailEnabled', 'weeklyDigestEmailEnabled', 'digestSendOnActivity', 'webhookOnSignificantEvent'], 'boolean'],
+            [['httpRateLimitEnabled', 'excludeCpFromHttpRateLimit', 'excludeCpResourcesFromHttpRateLimit', 'authLoggingEnabled', 'autoSweepExpiredIpBlocks', 'significantEventEmailEnabled', 'dailyDigestEmailEnabled', 'weeklyDigestEmailEnabled', 'digestSendOnActivity', 'webhookOnSignificantEvent', 'anonymizePii'], 'boolean'],
             [['maxRequestsPerIpPerMinute', 'httpRateLimitAlertsBeforeBlock', 'httpRateLimitAlertWindowMinutes', 'failedLoginThresholdPerIp', 'failedLoginWindowMinutes', 'defaultBlockDurationMinutes', 'permanentBlockAfterAutomaticBlocks', 'dailyDigestHour', 'weeklyDigestDayOfWeek', 'eventRetentionDays'], 'integer'],
             [['maxRequestsPerIpPerMinute'], 'integer', 'min' => 1, 'max' => 1000000],
             [['httpRateLimitAlertsBeforeBlock'], 'integer', 'min' => 1, 'max' => 100000],
@@ -227,6 +234,7 @@ class Settings extends Model
             'webhookUrl' => Craft::t('fort', 'Webhook URL (HTTPS)'),
             'webhookOnSignificantEvent' => Craft::t('fort', 'POST webhook on significant events'),
             'eventRetentionDays' => Craft::t('fort', 'Retain events (days)'),
+            'anonymizePii' => Craft::t('fort', 'Anonymize personal data (IP, attempted login)'),
         ];
     }
 }

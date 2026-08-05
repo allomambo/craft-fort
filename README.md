@@ -98,7 +98,7 @@ Fort settings are organized into six tabs:
 | Rate limiting | HTTP request limits, CP exclusions |
 | IP blocking | Block duration, permanent escalation, excluded IPs |
 | Notifications | Email recipients, digests schedule, webhook |
-| Data retention | Event and alert retention period, bulk purge |
+| Data retention | Event and alert retention period, bulk purge, personal-data anonymization |
 | Config file | View active `config/fort.php` overrides |
 
 ## Configuration
@@ -129,6 +129,12 @@ return [
 ```
 
 All settings from the Settings model can be overridden. Fort detects whether overrides apply to all environments (`*`) or a specific one, and displays this in the dashboard.
+
+### Personal Data Anonymization
+
+Fort records the client IP and, on failed logins, the attempted username or email. Set `anonymizePii` to `true` (Settings > Fort > Data retention, or `config/fort.php`) to hash the attempted login and mask the client IP (IPv4 last octet, IPv6 to /48) before anything is stored in an event or alert, emailed, or sent to a webhook.
+
+The setting is off by default and applies to new data only — rows written before enabling it keep their original values.
 
 ### Runtime Overrides
 

@@ -5,6 +5,7 @@ namespace allomambo\fort\services;
 use allomambo\fort\helpers\AlertDisplayHelper;
 use allomambo\fort\helpers\DigestScheduleHelper;
 use allomambo\fort\helpers\IpHelper;
+use allomambo\fort\helpers\PiiRedactor;
 use allomambo\fort\models\Settings;
 use allomambo\fort\Plugin;
 use Craft;
@@ -140,7 +141,17 @@ class NotificationService extends Component
             }
         }
 
+        // Single redaction point: everything below (alert row, webhook, email body and its JSON dump)
+        // is derived from $payload, so there is no path left carrying the raw values.
+        if ($settings->anonymizePii) {
+            $payload = PiiRedactor::redactMeta($payload);
+        }
+
         $clientIp = (string) ($payload['blockedClientIp'] ?? $payload['ip'] ?? '0.0.0.0');
+        if ($settings->anonymizePii) {
+            $clientIp = PiiRedactor::anonymizeIp($clientIp);
+        }
+
         $requestPath = isset($payload['requestPath']) && $payload['requestPath'] !== null && $payload['requestPath'] !== ''
             ? (string) $payload['requestPath']
             : null;

@@ -174,6 +174,8 @@ return [
     'Add my IP ({ip})' => 'Add my IP ({ip})',
     'Your IP ({ip}) is already excluded' => 'Your IP ({ip}) is already excluded',
     'Applies to the security event audit log and stored alert history.' => 'Applies to the security event audit log and stored alert history.',
+    'Anonymize personal data (IP, attempted login)' => 'Anonymize personal data (IP, attempted login)',
+    'When enabled, Fort hashes the attempted login (non-reversible) and masks the client IP (IPv4 last octet, IPv6 to /48) in stored events and alerts, notification emails, and webhook payloads. It applies going forward only: existing rows keep their original values, and failed-login thresholds are then counted per masked IP range.' => 'When enabled, Fort hashes the attempted login (non-reversible) and masks the client IP (IPv4 last octet, IPv6 to /48) in stored events and alerts, notification emails, and webhook payloads. It applies going forward only: existing rows keep their original values, and failed-login thresholds are then counted per masked IP range.',
     'Dates use the system timezone ({tz}).' => 'Dates use the system timezone ({tz}).',
     'Overview: these counts are for the last 24 hours (rolling window), based on the security event log. Login failures count each failed attempt; HTTP rate limits count rate-limit events; IP blocks recorded counts each time Fort applied a block.' => 'Overview: these counts are for the last 24 hours (rolling window), based on the security event log. Login failures count each failed attempt; HTTP rate limits count rate-limit events; IP blocks recorded counts each time Fort applied a block.',
     'Login failures (24h)' => 'Login failures (24h)',
