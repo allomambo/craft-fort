@@ -55,6 +55,16 @@ return [
         // --- Security event & alert retention (days) ---
         'eventRetentionDays' => 90,
 
+        // --- Security response headers (empty string = header not emitted) ---
+        'emitSecurityHeaders' => true,
+        'xContentTypeOptions' => 'nosniff',
+        'referrerPolicy' => 'strict-origin-when-cross-origin',
+        'permissionsPolicy' => 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=(), interest-cohort=()',
+        // HSTS and CSP are opt-in — leave empty until you have verified values.
+        'strictTransportSecurity' => '',
+        'contentSecurityPolicy' => '',
+        'contentSecurityPolicyReportOnly' => '',
+
         // --- Privacy: hash the attempted login and mask the client IP in stored
         //     events/alerts, notification emails, and webhook payloads (new data only) ---
         'anonymizePii' => false,
@@ -63,5 +73,7 @@ return [
     // 'production' => [
     //     'maxRequestsPerIpPerMinute' => 200,
     //     'webhookUrl' => 'https://hooks.example.com/fort',
+    //     'strictTransportSecurity' => 'max-age=31536000; includeSubDomains',
+    //     'contentSecurityPolicy' => "default-src 'self'",
     // ],
 ];
