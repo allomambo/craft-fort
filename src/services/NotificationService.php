@@ -409,11 +409,21 @@ class NotificationService extends Component
             $client = Craft::createGuzzleClient([
                 'timeout' => 5,
                 'connect_timeout' => 3,
+                'allow_redirects' => false,
             ]);
-            $client->post($url, [
+            $response = $client->post($url, [
                 'headers' => ['Content-Type' => 'application/json'],
                 'body' => json_encode($json, JSON_THROW_ON_ERROR),
+                'allow_redirects' => false,
             ]);
+            $status = $response->getStatusCode();
+            if ($status >= 300 && $status < 400) {
+                Craft::warning(
+                    'Fort webhook refused: target ' . (string) $parts['host']
+                    . ' attempted to redirect (status ' . $status . '); redirect not followed.',
+                    __METHOD__
+                );
+            }
         } catch (\Throwable $e) {
             Craft::warning('Fort webhook failed: ' . $e->getMessage(), __METHOD__);
         }
