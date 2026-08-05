@@ -176,12 +176,14 @@
   <div class="pane fort-config">
     <div class="fort-config__head">
       <h2 class="first">{{ 'Active configuration'|t('fort') }}</h2>
-      <div class="btngroup">
-        <button type="button" id="fort-open-runtime" class="btn small">{{ 'Edit'|t('fort') }}</button>
-        {% if fortHasAnyRuntimeOverride|default(false) %}
-          <button type="button" id="fort-clear-runtime" class="btn small">{{ 'Reset'|t('fort') }}</button>
-        {% endif %}
-      </div>
+      {% if currentUser.admin %}
+        <div class="btngroup">
+          <button type="button" id="fort-open-runtime" class="btn small">{{ 'Edit'|t('fort') }}</button>
+          {% if fortHasAnyRuntimeOverride|default(false) %}
+            <button type="button" id="fort-clear-runtime" class="btn small">{{ 'Reset'|t('fort') }}</button>
+          {% endif %}
+        </div>
+      {% endif %}
     </div>
 
     <h3 class="fort-config__section">{{ 'Login protection'|t('fort') }}</h3>

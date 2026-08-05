@@ -210,6 +210,9 @@ return [
     'Webhook URL must not include credentials.' => 'L\'URL du webhook ne doit pas contenir d\'identifiants.',
     'Webhook URL must use the default HTTPS port (443).' => 'L\'URL du webhook doit utiliser le port HTTPS par défaut (443).',
     'Webhook URL host must resolve to a public IP address (no loopback, private, link-local, CGNAT, or metadata addresses).' => 'L\'hôte de l\'URL du webhook doit résoudre à une adresse IP publique (aucune adresse de bouclage, privée, locale au lien, CGNAT ou de métadonnées).',
+    'Webhook URL could not be parsed.' => 'Impossible d\'analyser l\'URL du webhook.',
+    'Webhook URL host could not be resolved.' => 'Impossible de résoudre l\'hôte de l\'URL du webhook.',
+    'This configured webhook will be refused when Fort tries to send it: {reason}' => 'Ce webhook configuré sera refusé lorsque Fort tentera de l\'envoyer : {reason}',
     'Invalid IP or CIDR on line {line}: "{value}". Use IPv4, IPv6, IPv4 CIDR, or IPv6 CIDR.' => 'IP ou CIDR invalide à la ligne {line} : « {value} ». Utilisez IPv4, IPv6, CIDR IPv4 ou CIDR IPv6.',
 
     // Active configuration (overview)

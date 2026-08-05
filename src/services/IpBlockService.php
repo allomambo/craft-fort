@@ -11,8 +11,10 @@ use allomambo\fort\Plugin;
 use allomambo\fort\records\BlockedIpRecord;
 use Craft;
 use craft\helpers\DateTimeHelper;
+use craft\helpers\Db;
 use craft\helpers\StringHelper;
 use craft\base\Component;
+use DateTimeZone;
 use yii\db\Expression;
 use yii\web\ForbiddenHttpException;
 
@@ -447,6 +449,31 @@ class IpBlockService extends Component
         if ($swept > 0) {
             Craft::info("Fort: swept {$swept} expired temporary IP block(s).", __METHOD__);
         }
+    }
+
+    /**
+     * Delete inactive, non-permanent blocked-IP rows (which may carry operator-entered PII in
+     * {@see BlockedIpRecord::$notes}) once they are older than the retention window. Uses
+     * dateUpdated (not dateCreated) so a recently-cleared block still lingers for the window.
+     * Active blocks (blocked = true) and permanent blocks/blacklists (isPermanent = true) are
+     * never matched, regardless of age.
+     */
+    public function pruneInactiveBlocksOlderThanDays(int $days): int
+    {
+        $tz = new DateTimeZone(Craft::$app->getTimeZone());
+        $cutoff = DateTimeHelper::now($tz);
+        $cutoff->modify('-' . $days . ' days');
+        $cutoffDb = Db::prepareDateForDb($cutoff);
+        if ($cutoffDb === null) {
+            return 0;
+        }
+
+        return BlockedIpRecord::deleteAll([
+            'and',
+            ['blocked' => false],
+            ['isPermanent' => false],
+            ['<', 'dateUpdated', $cutoffDb],
+        ]);
     }
 
     public function countActiveBlocked(): int
