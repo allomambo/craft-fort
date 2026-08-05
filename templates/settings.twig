@@ -240,6 +240,109 @@
 	{% endif %}
 </div>
 
+<div class="{{ selectedTab != 'headers' ? 'hidden' }}" data-fort-tab-panel="headers" style="padding-bottom: 24px;">
+	{{ forms.lightswitchField({
+    label: 'Emit security response headers'|t('fort'),
+    id: 'emitSecurityHeaders',
+    name: 'emitSecurityHeaders',
+    on: settings.emitSecurityHeaders,
+    toggle: '#fort-security-header-fields',
+    warning: 'emitSecurityHeaders' in overrideKeys ? _owKey|t('fort', { prop: 'emitSecurityHeaders' }) : null,
+    errors: settings.getErrors('emitSecurityHeaders')
+  }) }}
+
+	<div id="fort-security-header-fields" class="nested-fields{{ not settings.emitSecurityHeaders ? ' hidden' }}">
+
+		<hr>
+
+		<div class="pane tip" role="status">
+			<p>{{ 'Headers already set by your project or server are never overwritten. Empty fields are not emitted.'|t('fort') }}</p>
+		</div>
+
+		{{ forms.field({
+      label: 'X-Content-Type-Options'|t('fort'),
+      id: 'xContentTypeOptions',
+      name: 'xContentTypeOptions',
+      value: settings.xContentTypeOptions,
+      warning: 'xContentTypeOptions' in overrideKeys ? _owKey|t('fort', { prop: 'xContentTypeOptions' }) : null,
+      errors: settings.getErrors('xContentTypeOptions')
+    }, 'template:fort/_includes/forms/text') }}
+
+		{{ forms.field({
+      label: 'Referrer-Policy'|t('fort'),
+      id: 'referrerPolicy',
+      name: 'referrerPolicy',
+      value: settings.referrerPolicy,
+      warning: 'referrerPolicy' in overrideKeys ? _owKey|t('fort', { prop: 'referrerPolicy' }) : null,
+      errors: settings.getErrors('referrerPolicy')
+    }, 'template:fort/_includes/forms/text') }}
+
+		{{ forms.textareaField({
+      label: 'Permissions-Policy'|t('fort'),
+      instructions: 'Sent on site requests only. Leave empty to disable.'|t('fort'),
+      id: 'permissionsPolicy',
+      name: 'permissionsPolicy',
+      value: settings.permissionsPolicy,
+      rows: 2,
+      warning: 'permissionsPolicy' in overrideKeys ? _owKey|t('fort', { prop: 'permissionsPolicy' }) : null,
+      errors: settings.getErrors('permissionsPolicy')
+    }) }}
+
+		{{ forms.field({
+      label: 'Strict-Transport-Security (opt-in)'|t('fort'),
+      instructions: 'Off by default. Never inferred from the request scheme. Start low (e.g. max-age=300), then increase to max-age=31536000 once verified. Prefer setting HSTS at the TLS terminator when possible.'|t('fort'),
+      id: 'strictTransportSecurity',
+      name: 'strictTransportSecurity',
+      value: settings.strictTransportSecurity,
+      warning: 'strictTransportSecurity' in overrideKeys ? _owKey|t('fort', { prop: 'strictTransportSecurity' }) : null,
+      errors: settings.getErrors('strictTransportSecurity')
+    }, 'template:fort/_includes/forms/text') }}
+
+		{{ forms.textareaField({
+      label: 'Content-Security-Policy'|t('fort'),
+      instructions: 'Enforcing policy. Roll out via the report-only header first, then promote here.'|t('fort'),
+      id: 'contentSecurityPolicy',
+      name: 'contentSecurityPolicy',
+      value: settings.contentSecurityPolicy,
+      rows: 3,
+      warning: 'contentSecurityPolicy' in overrideKeys ? _owKey|t('fort', { prop: 'contentSecurityPolicy' }) : null,
+      errors: settings.getErrors('contentSecurityPolicy')
+    }) }}
+
+		{{ forms.textareaField({
+      label: 'Content-Security-Policy-Report-Only'|t('fort'),
+      instructions: 'Use this to trial a CSP without breaking the site. Violations are reported, not blocked.'|t('fort'),
+      id: 'contentSecurityPolicyReportOnly',
+      name: 'contentSecurityPolicyReportOnly',
+      value: settings.contentSecurityPolicyReportOnly,
+      rows: 3,
+      warning: 'contentSecurityPolicyReportOnly' in overrideKeys ? _owKey|t('fort', { prop: 'contentSecurityPolicyReportOnly' }) : null,
+      errors: settings.getErrors('contentSecurityPolicyReportOnly')
+    }) }}
+
+		<hr>
+
+		<h2>{{ 'Emitted headers preview'|t('fort') }}</h2>
+		<p class="light">{{ 'What Fort will emit given the saved settings (headers a curl -I would show). Project- or server-set headers still take precedence.'|t('fort') }}</p>
+
+		<div class="flex" style="gap: 24px;">
+			<div style="flex: 1;">
+				<h6>{{ 'Site requests'|t('fort') }}</h6>
+				<pre class="pane" style="overflow:auto; font-size: 12px;">{% if securityHeadersPreviewSite is empty %}{{ '(no headers emitted)'|t('fort') }}{% else %}{% for name, value in securityHeadersPreviewSite %}{{ name }}: {{ value|e }}
+{% endfor %}{% endif %}</pre>
+			</div>
+			<div style="flex: 1;">
+				<h6>{{ 'Control Panel requests'|t('fort') }}</h6>
+				<pre class="pane" style="overflow:auto; font-size: 12px;">{% if securityHeadersPreviewCp is empty %}{{ '(no headers emitted)'|t('fort') }}{% else %}{% for name, value in securityHeadersPreviewCp %}{{ name }}: {{ value|e }}
+{% endfor %}{% endif %}</pre>
+			</div>
+		</div>
+
+		<p class="light">{{ 'Listeners on the EVENT_BEFORE_EMIT_SECURITY_HEADERS event may further modify these at runtime.'|t('fort') }}</p>
+
+	</div>
+</div>
+
 <div class="{{ selectedTab != 'notifications' ? 'hidden' }}" data-fort-tab-panel="notifications" style="padding-bottom: 24px;">
 	{{ forms.elementSelectField({
     label: 'Maintainer recipients'|t('fort'),

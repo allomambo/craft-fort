@@ -48,6 +48,7 @@ class Plugin extends BasePlugin
                 'notifications' => services\NotificationService::class,
                 'runtimeSettings' => services\RuntimeSettingsService::class,
                 'ipBlocks' => services\IpBlockService::class,
+                'securityHeaders' => services\SecurityHeadersService::class,
             ],
         ];
     }
@@ -157,6 +158,21 @@ class Plugin extends BasePlugin
                     if ($settings->autoSweepExpiredIpBlocks) {
                         $plugin->ipBlocks->maybeSweepExpiredBlocks();
                     }
+                }
+            );
+
+            // Applied late (after the response is fully prepared) via setDefault(), so headers
+            // already set by the project or server config always win over Fort's defaults.
+            Event::on(
+                \craft\web\Response::class,
+                \yii\web\Response::EVENT_AFTER_PREPARE,
+                function (\yii\base\Event $event) {
+                    $plugin = self::getInstance();
+                    if ($plugin === null || !Craft::$app->getPlugins()->isPluginEnabled($plugin->id)) {
+                        return;
+                    }
+
+                    $plugin->securityHeaders->applyTo($event->sender);
                 }
             );
 
@@ -328,7 +344,7 @@ class Plugin extends BasePlugin
 
     private function resolveSettingsTab(): string
     {
-        $allowed = ['auth', 'rateLimit', 'ipBlocking', 'notifications', 'retention', 'config'];
+        $allowed = ['auth', 'rateLimit', 'ipBlocking', 'headers', 'notifications', 'retention', 'config'];
         $tab = Craft::$app->getRequest()->getQueryParam('tab');
 
         return is_string($tab) && in_array($tab, $allowed, true) ? $tab : 'auth';
@@ -419,6 +435,8 @@ class Plugin extends BasePlugin
             'configExample' => $configExample,
             'fortActiveRuntimeOverrides' => $fortActiveRuntimeOverrides,
             'currentUserIp' => $requestIp,
+            'securityHeadersPreviewSite' => $this->securityHeaders->buildHeaders(false),
+            'securityHeadersPreviewCp' => $this->securityHeaders->buildHeaders(true),
         ];
 
         return $view->renderTemplate('fort/settings', $variables, View::TEMPLATE_MODE_CP);

@@ -51,6 +51,45 @@ Whitelist IPs or CIDR ranges that should never be blocked. Excluded IPs still ge
 
 A quick "Add my IP" button in the settings makes it easy to whitelist your own address.
 
+### Security Headers
+
+Fort can emit a set of static security response headers, managed from the CP with `config/fort.php` overrides.
+
+| Header | Default | Notes |
+|---|---|---|
+| X-Content-Type-Options | `nosniff` | Always emitted |
+| Referrer-Policy | `strict-origin-when-cross-origin` | Always emitted |
+| Permissions-Policy | Conservative deny-list | Site requests only |
+| Strict-Transport-Security | Off | Opt-in, site only |
+| Content-Security-Policy | Off | Opt-in, site only |
+| Content-Security-Policy-Report-Only | Off | Opt-in, site only |
+
+- An empty value means the header is not emitted.
+- Headers already set by your project or web server are never overwritten.
+- Control Panel requests only receive the always-safe headers (`X-Content-Type-Options`, `Referrer-Policy`); Permissions-Policy, HSTS, and CSP apply to site requests only so a site CSP cannot break the CP.
+
+**HSTS:** Fort never infers `Strict-Transport-Security` from the request scheme. Start with a low `max-age` (e.g. `max-age=300`) and raise it to `max-age=31536000` once you have verified behavior. Ideally, set HSTS at your TLS terminator (load balancer or CDN) rather than in PHP.
+
+**CSP rollout:** Trial your policy in `Content-Security-Policy-Report-Only` first, then promote the same directives to the enforcing `Content-Security-Policy` field when you are confident nothing legitimate is blocked.
+
+Projects can merge dynamic directives (nonces, `frame-ancestors`, `connect-src`, etc.) via the `EVENT_BEFORE_EMIT_SECURITY_HEADERS` event:
+
+```php
+use allomambo\fort\events\SecurityHeadersEvent;
+use allomambo\fort\services\SecurityHeadersService;
+use yii\base\Event;
+
+Event::on(
+    SecurityHeadersService::class,
+    SecurityHeadersService::EVENT_BEFORE_EMIT_SECURITY_HEADERS,
+    function (SecurityHeadersEvent $event) {
+        // Merge project-specific directives into the base CSP.
+        $event->headers['Content-Security-Policy'] =
+            ($event->headers['Content-Security-Policy'] ?? '') . '; frame-ancestors https://example.com';
+    }
+);
+```
+
 ### Notifications
 
 #### Significant Event Emails
@@ -90,13 +129,14 @@ A dedicated CP section with:
 
 ### Settings Tabs
 
-Fort settings are organized into six tabs:
+Fort settings are organized into seven tabs:
 
 | Tab | What it covers |
 |---|---|
 | Authentication & logging | Login attempt tracking, failure thresholds |
 | Rate limiting | HTTP request limits, CP exclusions |
 | IP blocking | Block duration, permanent escalation, excluded IPs |
+| Security headers | Response header emission, live preview |
 | Notifications | Email recipients, digests schedule, webhook |
 | Data retention | Event and alert retention period, bulk purge, personal-data anonymization |
 | Config file | View active `config/fort.php` overrides |

@@ -83,6 +83,27 @@ class Settings extends Model
      */
     public bool $anonymizePii = false;
 
+    /** Master switch for emitting security response headers. */
+    public bool $emitSecurityHeaders = true;
+
+    public string $xContentTypeOptions = 'nosniff';
+
+    public string $referrerPolicy = 'strict-origin-when-cross-origin';
+
+    public string $permissionsPolicy = 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=(), interest-cohort=()';
+
+    /**
+     * Empty = header not emitted. Must never be inferred from the request scheme
+     * (HSTS pinning footgun on local HTTPS dev hosts).
+     */
+    public string $strictTransportSecurity = '';
+
+    /** Enforcing CSP; empty = not emitted. */
+    public string $contentSecurityPolicy = '';
+
+    /** Report-only CSP; empty = not emitted. */
+    public string $contentSecurityPolicyReportOnly = '';
+
     public function beforeValidate(): bool
     {
         // Lightswitches POST '' when off; normalize for boolean rules.
@@ -99,6 +120,7 @@ class Settings extends Model
                 'autoSweepExpiredIpBlocks',
                 'webhookOnSignificantEvent',
                 'anonymizePii',
+                'emitSecurityHeaders',
             ] as $boolAttr
         ) {
             $v = $this->$boolAttr ?? null;
@@ -115,7 +137,7 @@ class Settings extends Model
     public function rules(): array
     {
         return [
-            [['httpRateLimitEnabled', 'excludeCpFromHttpRateLimit', 'excludeCpResourcesFromHttpRateLimit', 'authLoggingEnabled', 'autoSweepExpiredIpBlocks', 'significantEventEmailEnabled', 'dailyDigestEmailEnabled', 'weeklyDigestEmailEnabled', 'digestSendOnActivity', 'webhookOnSignificantEvent', 'anonymizePii'], 'boolean'],
+            [['httpRateLimitEnabled', 'excludeCpFromHttpRateLimit', 'excludeCpResourcesFromHttpRateLimit', 'authLoggingEnabled', 'autoSweepExpiredIpBlocks', 'significantEventEmailEnabled', 'dailyDigestEmailEnabled', 'weeklyDigestEmailEnabled', 'digestSendOnActivity', 'webhookOnSignificantEvent', 'anonymizePii', 'emitSecurityHeaders'], 'boolean'],
             [['maxRequestsPerIpPerMinute', 'httpRateLimitAlertsBeforeBlock', 'httpRateLimitAlertWindowMinutes', 'failedLoginThresholdPerIp', 'failedLoginWindowMinutes', 'defaultBlockDurationMinutes', 'permanentBlockAfterAutomaticBlocks', 'dailyDigestHour', 'weeklyDigestDayOfWeek', 'eventRetentionDays'], 'integer'],
             [['maxRequestsPerIpPerMinute'], 'integer', 'min' => 1, 'max' => 1000000],
             [['httpRateLimitAlertsBeforeBlock'], 'integer', 'min' => 1, 'max' => 100000],
@@ -132,7 +154,25 @@ class Settings extends Model
             [['webhookUrl'], 'validateWebhookUrlHostname', 'when' => fn() => $this->webhookUrl !== ''],
             [['excludedIps'], 'validateExcludedIps'],
             [['maintainerUserIds'], 'each', 'rule' => ['integer']],
+            [['xContentTypeOptions', 'referrerPolicy', 'permissionsPolicy', 'strictTransportSecurity', 'contentSecurityPolicy', 'contentSecurityPolicyReportOnly'], 'string', 'max' => 4096],
+            [['xContentTypeOptions', 'referrerPolicy', 'permissionsPolicy', 'strictTransportSecurity', 'contentSecurityPolicy', 'contentSecurityPolicyReportOnly'], 'validateHeaderValue'],
         ];
+    }
+
+    /**
+     * Reject header values containing control characters (including CR/LF), which could otherwise
+     * be used for HTTP response header injection. An empty string is always valid (header not emitted).
+     */
+    public function validateHeaderValue(string $attribute): void
+    {
+        $value = (string) $this->$attribute;
+        if ($value === '') {
+            return;
+        }
+
+        if (preg_match('/[\x00-\x1F\x7F]/', $value)) {
+            $this->addError($attribute, Craft::t('fort', 'Header values must not contain control characters.'));
+        }
     }
 
     /**
@@ -284,6 +324,13 @@ class Settings extends Model
             'webhookOnSignificantEvent' => Craft::t('fort', 'POST webhook on significant events'),
             'eventRetentionDays' => Craft::t('fort', 'Retain events (days)'),
             'anonymizePii' => Craft::t('fort', 'Anonymize personal data (IP, attempted login)'),
+            'emitSecurityHeaders' => Craft::t('fort', 'Emit security response headers'),
+            'xContentTypeOptions' => Craft::t('fort', 'X-Content-Type-Options'),
+            'referrerPolicy' => Craft::t('fort', 'Referrer-Policy'),
+            'permissionsPolicy' => Craft::t('fort', 'Permissions-Policy'),
+            'strictTransportSecurity' => Craft::t('fort', 'Strict-Transport-Security (opt-in)'),
+            'contentSecurityPolicy' => Craft::t('fort', 'Content-Security-Policy'),
+            'contentSecurityPolicyReportOnly' => Craft::t('fort', 'Content-Security-Policy-Report-Only'),
         ];
     }
 }
