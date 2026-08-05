@@ -163,6 +163,55 @@ class Settings extends Model
     }
 
     /**
+     * Mirrors the send-time checks in {@see \allomambo\fort\services\NotificationService::postWebhook()} so an
+     * admin can see in the CP, not just in logs, that a configured webhook (typically from `config/fort.php`,
+     * which bypasses {@see self::rules()}) will be silently refused at send time.
+     *
+     * Returns a translated error string describing why the URL would be refused, or null when it is fine.
+     */
+    public function getWebhookUrlSafetyError(): ?string
+    {
+        $url = $this->webhookUrl;
+        if ($url === '') {
+            return null;
+        }
+
+        return $this->webhookUrlSendTimeError($url);
+    }
+
+    private function webhookUrlSendTimeError(string $url): ?string
+    {
+        if (!str_starts_with($url, 'https://')) {
+            return Craft::t('fort', 'Webhook URL must be HTTPS.');
+        }
+
+        $parts = parse_url($url);
+        if ($parts === false || empty($parts['host'])) {
+            return Craft::t('fort', 'Webhook URL could not be parsed.');
+        }
+
+        if (isset($parts['user']) || isset($parts['pass'])) {
+            return Craft::t('fort', 'Webhook URL must not include credentials.');
+        }
+
+        if (isset($parts['port']) && (int) $parts['port'] !== 443) {
+            return Craft::t('fort', 'Webhook URL must use the default HTTPS port (443).');
+        }
+
+        $resolved = [];
+        try {
+            $public = IpHelper::hostnameResolvesToPublicOnly((string) $parts['host'], $resolved);
+        } catch (\Throwable) {
+            return Craft::t('fort', 'Webhook URL host could not be resolved.');
+        }
+        if (!$public) {
+            return Craft::t('fort', 'Webhook URL host must resolve to a public IP address (no loopback, private, link-local, CGNAT, or metadata addresses).');
+        }
+
+        return null;
+    }
+
+    /**
      * Reject any excluded IP/CIDR entry that is not a valid IPv4, IPv6, IPv4 CIDR, or IPv6 CIDR.
      * Reports every bad line so admins can fix them in one round trip.
      */

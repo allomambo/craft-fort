@@ -348,6 +348,13 @@
       warning: 'webhookUrl' in overrideKeys ? _owKey|t('fort', { prop: 'webhookUrl' }) : null,
       errors: settings.getErrors('webhookUrl')
     }) }}
+
+		{% set webhookSafetyError = settings.getWebhookUrlSafetyError() %}
+		{% if settings.webhookOnSignificantEvent and webhookSafetyError is not null %}
+			<p class="error">
+				{{ 'This configured webhook will be refused when Fort tries to send it: {reason}'|t('fort', { reason: webhookSafetyError }) }}
+			</p>
+		{% endif %}
 	</div>
 
 </div>
