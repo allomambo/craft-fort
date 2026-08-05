@@ -29,6 +29,12 @@ class NotificationService extends Component
 
     private const SIGNIFICANT_EMAIL_THROTTLE_TTL = 3600;
 
+    private const SIGNIFICANT_WEBHOOK_THROTTLE_KEY = 'fort:sig-webhook-throttle';
+
+    private const SIGNIFICANT_WEBHOOK_MAX_PER_HOUR = 60;
+
+    private const SIGNIFICANT_WEBHOOK_THROTTLE_TTL = 3600;
+
     /**
      * Console / server cron: send daily digest when enabled (ignores hour schedule).
      */
@@ -152,11 +158,18 @@ class NotificationService extends Component
         }
 
         if ($settings->webhookOnSignificantEvent && $settings->webhookUrl !== '') {
-            $this->postWebhook([
-                'event' => $eventType,
-                'time' => gmdate('Y-m-d H:i:s'),
-                'payload' => $payload,
-            ]);
+            $cache = Craft::$app->getCache();
+            $webhookThrottleCount = (int) $cache->get(self::SIGNIFICANT_WEBHOOK_THROTTLE_KEY);
+            if ($webhookThrottleCount >= self::SIGNIFICANT_WEBHOOK_MAX_PER_HOUR) {
+                Craft::warning("Fort: significant event webhook throttled ({$webhookThrottleCount} sent in the last hour).", __METHOD__);
+            } else {
+                $cache->set(self::SIGNIFICANT_WEBHOOK_THROTTLE_KEY, $webhookThrottleCount + 1, self::SIGNIFICANT_WEBHOOK_THROTTLE_TTL);
+                $this->postWebhook([
+                    'event' => $eventType,
+                    'time' => gmdate('Y-m-d H:i:s'),
+                    'payload' => $payload,
+                ]);
+            }
         }
 
         if (!$settings->significantEventEmailEnabled) {
