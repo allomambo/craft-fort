@@ -320,14 +320,16 @@ else
 fi
 
 # ---- generate release notes (commits since previous tag of any kind) ----
+# Omit the bookkeeping "Release v…" commit created by this script (and any
+# earlier ones if the range somehow includes them). Same filter for dry-run.
 echo "📝 Generating GitHub release notes (since ${PREV_TAG:-repository start})..."
 if [[ -z "$PREV_TAG" ]]; then
-  RELEASE_NOTES=$(git log --pretty=format:"- %s" --no-merges)
+  RELEASE_NOTES=$(git log --pretty=format:"- %s" --no-merges --grep='^Release v' --invert-grep)
 else
   if [[ "$DRY_RUN" == "1" ]]; then
-    RELEASE_NOTES=$(git log --pretty=format:"- %s" --no-merges "${PREV_TAG}..HEAD")
+    RELEASE_NOTES=$(git log --pretty=format:"- %s" --no-merges --grep='^Release v' --invert-grep "${PREV_TAG}..HEAD")
   else
-    RELEASE_NOTES=$(git log --pretty=format:"- %s" --no-merges "${PREV_TAG}..${NEW_TAG}")
+    RELEASE_NOTES=$(git log --pretty=format:"- %s" --no-merges --grep='^Release v' --invert-grep "${PREV_TAG}..${NEW_TAG}")
   fi
 fi
 
