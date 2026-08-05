@@ -344,7 +344,7 @@ class Plugin extends BasePlugin
 
     private function resolveSettingsTab(): string
     {
-        $allowed = ['auth', 'rateLimit', 'ipBlocking', 'notifications', 'retention', 'config'];
+        $allowed = ['auth', 'rateLimit', 'ipBlocking', 'headers', 'notifications', 'retention', 'config'];
         $tab = Craft::$app->getRequest()->getQueryParam('tab');
 
         return is_string($tab) && in_array($tab, $allowed, true) ? $tab : 'auth';
@@ -435,6 +435,8 @@ class Plugin extends BasePlugin
             'configExample' => $configExample,
             'fortActiveRuntimeOverrides' => $fortActiveRuntimeOverrides,
             'currentUserIp' => $requestIp,
+            'securityHeadersPreviewSite' => $this->securityHeaders->buildHeaders(false),
+            'securityHeadersPreviewCp' => $this->securityHeaders->buildHeaders(true),
         ];
 
         return $view->renderTemplate('fort/settings', $variables, View::TEMPLATE_MODE_CP);
