@@ -48,6 +48,7 @@ class Plugin extends BasePlugin
                 'notifications' => services\NotificationService::class,
                 'runtimeSettings' => services\RuntimeSettingsService::class,
                 'ipBlocks' => services\IpBlockService::class,
+                'securityHeaders' => services\SecurityHeadersService::class,
             ],
         ];
     }
@@ -157,6 +158,21 @@ class Plugin extends BasePlugin
                     if ($settings->autoSweepExpiredIpBlocks) {
                         $plugin->ipBlocks->maybeSweepExpiredBlocks();
                     }
+                }
+            );
+
+            // Applied late (after the response is fully prepared) via setDefault(), so headers
+            // already set by the project or server config always win over Fort's defaults.
+            Event::on(
+                \craft\web\Response::class,
+                \yii\web\Response::EVENT_AFTER_PREPARE,
+                function (\yii\base\Event $event) {
+                    $plugin = self::getInstance();
+                    if ($plugin === null || !Craft::$app->getPlugins()->isPluginEnabled($plugin->id)) {
+                        return;
+                    }
+
+                    $plugin->securityHeaders->applyTo($event->sender);
                 }
             );
 
