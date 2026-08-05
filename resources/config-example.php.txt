@@ -54,6 +54,10 @@ return [
 
         // --- Security event & alert retention (days) ---
         'eventRetentionDays' => 90,
+
+        // --- Privacy: hash the attempted login and mask the client IP in stored
+        //     events/alerts, notification emails, and webhook payloads (new data only) ---
+        'anonymizePii' => false,
     ],
 
     // 'production' => [

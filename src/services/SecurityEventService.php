@@ -3,6 +3,7 @@
 namespace allomambo\fort\services;
 
 use allomambo\fort\helpers\IpHelper;
+use allomambo\fort\helpers\PiiRedactor;
 use allomambo\fort\Plugin;
 use allomambo\fort\records\BlockedIpRecord;
 use allomambo\fort\records\SecurityEventRecord;
@@ -33,6 +34,13 @@ class SecurityEventService extends Component
             if ($identity !== null && !isset($meta['triggeringUserId'])) {
                 $meta['triggeringUserId'] = $identity->id;
             }
+        }
+
+        /** @var \allomambo\fort\models\Settings $settings */
+        $settings = Plugin::getInstance()->getSettings();
+        if ($settings->anonymizePii) {
+            $clientIp = PiiRedactor::anonymizeIp($clientIp);
+            $meta = PiiRedactor::redactMeta($meta);
         }
 
         $record = new SecurityEventRecord();
@@ -88,7 +96,10 @@ class SecurityEventService extends Component
             return;
         }
 
-        $ipVariants = IpHelper::equivalentClientIpStrings($clientIp);
+        // Count against the same string the rows were written with: with anonymization on, stored
+        // clientIp values are masked, so the window is evaluated per masked range instead of per host.
+        $lookupIp = $settings->anonymizePii ? PiiRedactor::anonymizeIp($clientIp) : $clientIp;
+        $ipVariants = IpHelper::equivalentClientIpStrings($lookupIp);
 
         $failures = (int) SecurityEventRecord::find()
             ->where([
