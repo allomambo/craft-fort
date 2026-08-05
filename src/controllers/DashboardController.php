@@ -296,6 +296,7 @@ class DashboardController extends Controller
         $this->requireCpRequest();
         $this->requirePostRequest();
         $this->requireAcceptsJson();
+        $this->requireAdmin();
 
         $req = Craft::$app->getRequest();
         $plugin = Plugin::getInstance();
@@ -350,6 +351,7 @@ class DashboardController extends Controller
         $this->requireCpRequest();
         $this->requirePostRequest();
         $this->requireAcceptsJson();
+        $this->requireAdmin();
 
         $ip = trim((string) Craft::$app->getRequest()->getBodyParam('ip'));
         $notes = Craft::$app->getRequest()->getBodyParam('notes');
@@ -385,6 +387,7 @@ class DashboardController extends Controller
         $this->requireCpRequest();
         $this->requirePostRequest();
         $this->requireAcceptsJson();
+        $this->requireAdmin();
 
         $ip = trim((string) Craft::$app->getRequest()->getBodyParam('ip'));
         if (!IpHelper::isValidIp($ip)) {
@@ -410,6 +413,7 @@ class DashboardController extends Controller
         $this->requireCpRequest();
         $this->requirePostRequest();
         $this->requireAcceptsJson();
+        $this->requireAdmin();
 
         $ip = trim((string) Craft::$app->getRequest()->getBodyParam('ip'));
         if (!IpHelper::isValidIp($ip)) {
