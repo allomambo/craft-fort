@@ -62,32 +62,27 @@
             {% endif %}
           </td>
           <td class="thin">
-            {% include '_includes/disclosuremenu' with {
-              withButton: true,
-              buttonLabel: null,
-              buttonHtml: null,
-              buttonAttributes: {
-                class: ['action-btn', 'small', 'hairline'],
+            {% set fortRowActionItems = [
+              {
+                icon: 'clipboard',
+                label: 'Copy IP'|t('fort'),
+                attributes: {
+                  class: ['fort-action-copy-ip'],
+                  data: { ip: row.clientIp },
+                },
               },
-              hiddenLabel: 'Actions'|t('fort'),
-              items: [
-                {
-                  icon: 'clipboard',
-                  label: 'Copy IP'|t('fort'),
-                  attributes: {
-                    class: ['fort-action-copy-ip'],
-                    data: { ip: row.clientIp },
-                  },
+              {
+                icon: 'magnifying-glass',
+                label: 'Trace IP'|t('fort'),
+                url: 'https://abuseipdb.com/check/' ~ row.clientIp,
+                attributes: {
+                  target: '_blank',
+                  rel: 'noopener noreferrer',
                 },
-                {
-                  icon: 'magnifying-glass',
-                  label: 'Trace IP'|t('fort'),
-                  url: 'https://abuseipdb.com/check/' ~ row.clientIp,
-                  attributes: {
-                    target: '_blank',
-                    rel: 'noopener noreferrer',
-                  },
-                },
+              },
+            ] %}
+            {% if currentUser.admin %}
+              {% set fortRowActionItems = fortRowActionItems|merge([
                 row.blocked ? {
                   icon: 'unlock',
                   label: 'Unblock'|t('fort'),
@@ -111,7 +106,17 @@
                     data: { ip: row.clientIp, notes: row.notes|default('') },
                   },
                 },
-              ],
+              ]) %}
+            {% endif %}
+            {% include '_includes/disclosuremenu' with {
+              withButton: true,
+              buttonLabel: null,
+              buttonHtml: null,
+              buttonAttributes: {
+                class: ['action-btn', 'small', 'hairline'],
+              },
+              hiddenLabel: 'Actions'|t('fort'),
+              items: fortRowActionItems,
             } %}
           </td>
         {% endif %}

@@ -1,7 +1,9 @@
 {% extends "_layouts/cp" %}
 
 {% block actionButton %}
-  <button type="button" id="fort-open-block-ip" class="btn submit add icon">{{ 'Block IP'|t('fort') }}</button>
+  {% if currentUser.admin %}
+    <button type="button" id="fort-open-block-ip" class="btn submit add icon">{{ 'Block IP'|t('fort') }}</button>
+  {% endif %}
 {% endblock %}
 
 {% block content %}
