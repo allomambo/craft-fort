@@ -77,6 +77,12 @@ class Settings extends Model
 
     public int $eventRetentionDays = 90;
 
+    /**
+     * When true, the attempted login is hashed and the client IP is masked before Fort stores
+     * an event/alert or sends it out by email or webhook. Only affects data written from now on.
+     */
+    public bool $anonymizePii = false;
+
     public function beforeValidate(): bool
     {
         // Lightswitches POST '' when off; normalize for boolean rules.
@@ -92,6 +98,7 @@ class Settings extends Model
                 'digestSendOnActivity',
                 'autoSweepExpiredIpBlocks',
                 'webhookOnSignificantEvent',
+                'anonymizePii',
             ] as $boolAttr
         ) {
             $v = $this->$boolAttr ?? null;
@@ -108,7 +115,7 @@ class Settings extends Model
     public function rules(): array
     {
         return [
-            [['httpRateLimitEnabled', 'excludeCpFromHttpRateLimit', 'excludeCpResourcesFromHttpRateLimit', 'authLoggingEnabled', 'autoSweepExpiredIpBlocks', 'significantEventEmailEnabled', 'dailyDigestEmailEnabled', 'weeklyDigestEmailEnabled', 'digestSendOnActivity', 'webhookOnSignificantEvent'], 'boolean'],
+            [['httpRateLimitEnabled', 'excludeCpFromHttpRateLimit', 'excludeCpResourcesFromHttpRateLimit', 'authLoggingEnabled', 'autoSweepExpiredIpBlocks', 'significantEventEmailEnabled', 'dailyDigestEmailEnabled', 'weeklyDigestEmailEnabled', 'digestSendOnActivity', 'webhookOnSignificantEvent', 'anonymizePii'], 'boolean'],
             [['maxRequestsPerIpPerMinute', 'httpRateLimitAlertsBeforeBlock', 'httpRateLimitAlertWindowMinutes', 'failedLoginThresholdPerIp', 'failedLoginWindowMinutes', 'defaultBlockDurationMinutes', 'permanentBlockAfterAutomaticBlocks', 'dailyDigestHour', 'weeklyDigestDayOfWeek', 'eventRetentionDays'], 'integer'],
             [['maxRequestsPerIpPerMinute'], 'integer', 'min' => 1, 'max' => 1000000],
             [['httpRateLimitAlertsBeforeBlock'], 'integer', 'min' => 1, 'max' => 100000],
@@ -160,6 +167,55 @@ class Settings extends Model
         if (!$ok) {
             $this->addError($attribute, Craft::t('fort', 'Webhook URL host must resolve to a public IP address (no loopback, private, link-local, CGNAT, or metadata addresses).'));
         }
+    }
+
+    /**
+     * Mirrors the send-time checks in {@see \allomambo\fort\services\NotificationService::postWebhook()} so an
+     * admin can see in the CP, not just in logs, that a configured webhook (typically from `config/fort.php`,
+     * which bypasses {@see self::rules()}) will be silently refused at send time.
+     *
+     * Returns a translated error string describing why the URL would be refused, or null when it is fine.
+     */
+    public function getWebhookUrlSafetyError(): ?string
+    {
+        $url = $this->webhookUrl;
+        if ($url === '') {
+            return null;
+        }
+
+        return $this->webhookUrlSendTimeError($url);
+    }
+
+    private function webhookUrlSendTimeError(string $url): ?string
+    {
+        if (!str_starts_with($url, 'https://')) {
+            return Craft::t('fort', 'Webhook URL must be HTTPS.');
+        }
+
+        $parts = parse_url($url);
+        if ($parts === false || empty($parts['host'])) {
+            return Craft::t('fort', 'Webhook URL could not be parsed.');
+        }
+
+        if (isset($parts['user']) || isset($parts['pass'])) {
+            return Craft::t('fort', 'Webhook URL must not include credentials.');
+        }
+
+        if (isset($parts['port']) && (int) $parts['port'] !== 443) {
+            return Craft::t('fort', 'Webhook URL must use the default HTTPS port (443).');
+        }
+
+        $resolved = [];
+        try {
+            $public = IpHelper::hostnameResolvesToPublicOnly((string) $parts['host'], $resolved);
+        } catch (\Throwable) {
+            return Craft::t('fort', 'Webhook URL host could not be resolved.');
+        }
+        if (!$public) {
+            return Craft::t('fort', 'Webhook URL host must resolve to a public IP address (no loopback, private, link-local, CGNAT, or metadata addresses).');
+        }
+
+        return null;
     }
 
     /**
@@ -227,6 +283,7 @@ class Settings extends Model
             'webhookUrl' => Craft::t('fort', 'Webhook URL (HTTPS)'),
             'webhookOnSignificantEvent' => Craft::t('fort', 'POST webhook on significant events'),
             'eventRetentionDays' => Craft::t('fort', 'Retain events (days)'),
+            'anonymizePii' => Craft::t('fort', 'Anonymize personal data (IP, attempted login)'),
         ];
     }
 }

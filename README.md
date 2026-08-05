@@ -98,7 +98,7 @@ Fort settings are organized into six tabs:
 | Rate limiting | HTTP request limits, CP exclusions |
 | IP blocking | Block duration, permanent escalation, excluded IPs |
 | Notifications | Email recipients, digests schedule, webhook |
-| Data retention | Event and alert retention period, bulk purge |
+| Data retention | Event and alert retention period, bulk purge, personal-data anonymization |
 | Config file | View active `config/fort.php` overrides |
 
 ## Configuration
@@ -129,6 +129,16 @@ return [
 ```
 
 All settings from the Settings model can be overridden. Fort detects whether overrides apply to all environments (`*`) or a specific one, and displays this in the dashboard.
+
+> **Config file values bypass Control Panel validation.** Values loaded from `config/fort.php` are applied directly to the settings model at runtime — they never run through the CP's save-time validation (`Settings::rules()`), including the webhook's HTTPS/SSRF host checks and the numeric range caps. A malformed or unsafe value in `config/fort.php` will not show a save error; it will just take effect (or, for `webhookUrl`, silently fail at send time — see below). Validate your `config/fort.php` values carefully, especially `webhookUrl`.
+>
+> If you set `webhookUrl` via `config/fort.php`, it **must** be a valid public HTTPS URL on the default port (443), with no embedded credentials, and a host that resolves only to public IP addresses. Fort re-checks these same rules at send time in `NotificationService::postWebhook()`; if they fail, the webhook is silently skipped and only a `Craft::warning()` log entry is written — no email, no CP error. The Notifications settings tab surfaces a warning banner when the configured webhook would fail this check, so check there if you suspect webhooks aren't firing.
+
+### Personal Data Anonymization
+
+Fort records the client IP and, on failed logins, the attempted username or email. Set `anonymizePii` to `true` (Settings > Fort > Data retention, or `config/fort.php`) to hash the attempted login and mask the client IP (IPv4 last octet, IPv6 to /48) before anything is stored in an event or alert, emailed, or sent to a webhook.
+
+The setting is off by default and applies to new data only — rows written before enabling it keep their original values.
 
 ### Runtime Overrides
 

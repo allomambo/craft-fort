@@ -174,6 +174,8 @@ return [
     'Add my IP ({ip})' => 'Add my IP ({ip})',
     'Your IP ({ip}) is already excluded' => 'Your IP ({ip}) is already excluded',
     'Applies to the security event audit log and stored alert history.' => 'Applies to the security event audit log and stored alert history.',
+    'Anonymize personal data (IP, attempted login)' => 'Anonymize personal data (IP, attempted login)',
+    'When enabled, Fort hashes the attempted login (non-reversible) and masks the client IP (IPv4 last octet, IPv6 to /48) in stored events and alerts, notification emails, and webhook payloads. It applies going forward only: existing rows keep their original values, and failed-login thresholds are then counted per masked IP range.' => 'When enabled, Fort hashes the attempted login (non-reversible) and masks the client IP (IPv4 last octet, IPv6 to /48) in stored events and alerts, notification emails, and webhook payloads. It applies going forward only: existing rows keep their original values, and failed-login thresholds are then counted per masked IP range.',
     'Dates use the system timezone ({tz}).' => 'Dates use the system timezone ({tz}).',
     'Overview: these counts are for the last 24 hours (rolling window), based on the security event log. Login failures count each failed attempt; HTTP rate limits count rate-limit events; IP blocks recorded counts each time Fort applied a block.' => 'Overview: these counts are for the last 24 hours (rolling window), based on the security event log. Login failures count each failed attempt; HTTP rate limits count rate-limit events; IP blocks recorded counts each time Fort applied a block.',
     'Login failures (24h)' => 'Login failures (24h)',
@@ -208,6 +210,9 @@ return [
     'Webhook URL must not include credentials.' => 'Webhook URL must not include credentials.',
     'Webhook URL must use the default HTTPS port (443).' => 'Webhook URL must use the default HTTPS port (443).',
     'Webhook URL host must resolve to a public IP address (no loopback, private, link-local, CGNAT, or metadata addresses).' => 'Webhook URL host must resolve to a public IP address (no loopback, private, link-local, CGNAT, or metadata addresses).',
+    'Webhook URL could not be parsed.' => 'Webhook URL could not be parsed.',
+    'Webhook URL host could not be resolved.' => 'Webhook URL host could not be resolved.',
+    'This configured webhook will be refused when Fort tries to send it: {reason}' => 'This configured webhook will be refused when Fort tries to send it: {reason}',
     'Invalid IP or CIDR on line {line}: "{value}". Use IPv4, IPv6, IPv4 CIDR, or IPv6 CIDR.' => 'Invalid IP or CIDR on line {line}: "{value}". Use IPv4, IPv6, IPv4 CIDR, or IPv6 CIDR.',
 
     // Active configuration (overview)

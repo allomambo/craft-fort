@@ -348,6 +348,13 @@
       warning: 'webhookUrl' in overrideKeys ? _owKey|t('fort', { prop: 'webhookUrl' }) : null,
       errors: settings.getErrors('webhookUrl')
     }) }}
+
+		{% set webhookSafetyError = settings.getWebhookUrlSafetyError() %}
+		{% if settings.webhookOnSignificantEvent and webhookSafetyError is not null %}
+			<p class="error">
+				{{ 'This configured webhook will be refused when Fort tries to send it: {reason}'|t('fort', { reason: webhookSafetyError }) }}
+			</p>
+		{% endif %}
 	</div>
 
 </div>
@@ -365,6 +372,18 @@
     warning: 'eventRetentionDays' in overrideKeys ? _owKey|t('fort', { prop: 'eventRetentionDays' }) : null,
     errors: settings.getErrors('eventRetentionDays')
   }, 'template:fort/_includes/forms/text') }}
+
+	<hr>
+
+	{{ forms.lightswitchField({
+    label: 'Anonymize personal data (IP, attempted login)'|t('fort'),
+    id: 'anonymizePii',
+    name: 'anonymizePii',
+    on: settings.anonymizePii,
+    instructions: 'When enabled, Fort hashes the attempted login (non-reversible) and masks the client IP (IPv4 last octet, IPv6 to /48) in stored events and alerts, notification emails, and webhook payloads. It applies going forward only: existing rows keep their original values, and failed-login thresholds are then counted per masked IP range.'|t('fort'),
+    warning: 'anonymizePii' in overrideKeys ? _owKey|t('fort', { prop: 'anonymizePii' }) : null,
+    errors: settings.getErrors('anonymizePii')
+  }) }}
 
 	<hr>
 

@@ -5,6 +5,7 @@ namespace allomambo\fort\services;
 use allomambo\fort\helpers\AlertDisplayHelper;
 use allomambo\fort\helpers\DigestScheduleHelper;
 use allomambo\fort\helpers\IpHelper;
+use allomambo\fort\helpers\PiiRedactor;
 use allomambo\fort\models\Settings;
 use allomambo\fort\Plugin;
 use Craft;
@@ -28,6 +29,12 @@ class NotificationService extends Component
     private const SIGNIFICANT_EMAIL_MAX_PER_HOUR = 20;
 
     private const SIGNIFICANT_EMAIL_THROTTLE_TTL = 3600;
+
+    private const SIGNIFICANT_WEBHOOK_THROTTLE_KEY = 'fort:sig-webhook-throttle';
+
+    private const SIGNIFICANT_WEBHOOK_MAX_PER_HOUR = 60;
+
+    private const SIGNIFICANT_WEBHOOK_THROTTLE_TTL = 3600;
 
     /**
      * Console / server cron: send daily digest when enabled (ignores hour schedule).
@@ -140,7 +147,17 @@ class NotificationService extends Component
             }
         }
 
+        // Single redaction point: everything below (alert row, webhook, email body and its JSON dump)
+        // is derived from $payload, so there is no path left carrying the raw values.
+        if ($settings->anonymizePii) {
+            $payload = PiiRedactor::redactMeta($payload);
+        }
+
         $clientIp = (string) ($payload['blockedClientIp'] ?? $payload['ip'] ?? '0.0.0.0');
+        if ($settings->anonymizePii) {
+            $clientIp = PiiRedactor::anonymizeIp($clientIp);
+        }
+
         $requestPath = isset($payload['requestPath']) && $payload['requestPath'] !== null && $payload['requestPath'] !== ''
             ? (string) $payload['requestPath']
             : null;
@@ -152,11 +169,18 @@ class NotificationService extends Component
         }
 
         if ($settings->webhookOnSignificantEvent && $settings->webhookUrl !== '') {
-            $this->postWebhook([
-                'event' => $eventType,
-                'time' => gmdate('Y-m-d H:i:s'),
-                'payload' => $payload,
-            ]);
+            $cache = Craft::$app->getCache();
+            $webhookThrottleCount = (int) $cache->get(self::SIGNIFICANT_WEBHOOK_THROTTLE_KEY);
+            if ($webhookThrottleCount >= self::SIGNIFICANT_WEBHOOK_MAX_PER_HOUR) {
+                Craft::warning("Fort: significant event webhook throttled ({$webhookThrottleCount} sent in the last hour).", __METHOD__);
+            } else {
+                $cache->set(self::SIGNIFICANT_WEBHOOK_THROTTLE_KEY, $webhookThrottleCount + 1, self::SIGNIFICANT_WEBHOOK_THROTTLE_TTL);
+                $this->postWebhook([
+                    'event' => $eventType,
+                    'time' => gmdate('Y-m-d H:i:s'),
+                    'payload' => $payload,
+                ]);
+            }
         }
 
         if (!$settings->significantEventEmailEnabled) {
@@ -409,11 +433,21 @@ class NotificationService extends Component
             $client = Craft::createGuzzleClient([
                 'timeout' => 5,
                 'connect_timeout' => 3,
+                'allow_redirects' => false,
             ]);
-            $client->post($url, [
+            $response = $client->post($url, [
                 'headers' => ['Content-Type' => 'application/json'],
                 'body' => json_encode($json, JSON_THROW_ON_ERROR),
+                'allow_redirects' => false,
             ]);
+            $status = $response->getStatusCode();
+            if ($status >= 300 && $status < 400) {
+                Craft::warning(
+                    'Fort webhook refused: target ' . (string) $parts['host']
+                    . ' attempted to redirect (status ' . $status . '); redirect not followed.',
+                    __METHOD__
+                );
+            }
         } catch (\Throwable $e) {
             Craft::warning('Fort webhook failed: ' . $e->getMessage(), __METHOD__);
         }

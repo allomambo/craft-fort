@@ -42,12 +42,22 @@ return [
         'digestSendOnActivity' => true,
         'maintainerUserIds' => [],
         // 'maintainerUserIds' => [1, 2],
+        //
+        // NOTE: values set here bypass Settings::rules() (the Control Panel's save-time
+        // validation), so an invalid webhookUrl will NOT show a save error — it will just
+        // silently fail at send time (NotificationService::postWebhook() logs a warning and
+        // skips the request). webhookUrl must be a public HTTPS URL on port 443, with no
+        // embedded credentials, and a host that resolves only to public IP addresses.
         'webhookUrl' => '',
         // 'webhookUrl' => 'https://example.com/hooks/fort',
         'webhookOnSignificantEvent' => false,
 
         // --- Security event & alert retention (days) ---
         'eventRetentionDays' => 90,
+
+        // --- Privacy: hash the attempted login and mask the client IP in stored
+        //     events/alerts, notification emails, and webhook payloads (new data only) ---
+        'anonymizePii' => false,
     ],
 
     // 'production' => [

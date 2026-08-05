@@ -16,7 +16,8 @@ class EventsController extends Controller
         $days = $plugin->getSettings()->eventRetentionDays;
         $n = $plugin->securityEvents->pruneOlderThanDays($days);
         $na = $plugin->alerts->pruneOlderThanDays($days);
-        $this->stdout("Pruned {$n} Fort security event(s) and {$na} alert row(s) older than {$days} day(s).\n");
+        $nb = $plugin->ipBlocks->pruneInactiveBlocksOlderThanDays($days);
+        $this->stdout("Pruned {$n} event(s), {$na} alert row(s), and {$nb} inactive blocked-IP row(s) older than {$days} day(s).\n");
 
         return self::EXIT_CODE_NORMAL;
     }

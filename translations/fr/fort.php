@@ -174,6 +174,8 @@ return [
     'Add my IP ({ip})' => 'Ajouter mon IP ({ip})',
     'Your IP ({ip}) is already excluded' => 'Votre IP ({ip}) est déjà exclue',
     'Applies to the security event audit log and stored alert history.' => 'S\'applique au journal d\'audit des événements de sécurité et à l\'historique des alertes enregistrées.',
+    'Anonymize personal data (IP, attempted login)' => 'Anonymiser les données personnelles (IP, tentative de connexion)',
+    'When enabled, Fort hashes the attempted login (non-reversible) and masks the client IP (IPv4 last octet, IPv6 to /48) in stored events and alerts, notification emails, and webhook payloads. It applies going forward only: existing rows keep their original values, and failed-login thresholds are then counted per masked IP range.' => 'Si activé, Fort hache la tentative de connexion (de façon irréversible) et masque l\'IP du client (dernier octet en IPv4, /48 en IPv6) dans les événements et alertes enregistrés, les courriels de notification et les charges utiles des webhooks. L\'option s\'applique aux nouvelles données seulement : les lignes existantes conservent leurs valeurs d\'origine, et les seuils d\'échecs de connexion sont alors comptés par plage d\'IP masquée.',
     'Dates use the system timezone ({tz}).' => 'Les dates utilisent le fuseau horaire du système ({tz}).',
     'Overview: these counts are for the last 24 hours (rolling window), based on the security event log. Login failures count each failed attempt; HTTP rate limits count rate-limit events; IP blocks recorded counts each time Fort applied a block.' => 'Aperçu : ces totaux couvrent les dernières 24 heures (fenêtre glissante), d\'après le journal d\'événements de sécurité. Les échecs de connexion comptent chaque tentative ; la limitation HTTP compte les événements de limitation ; les blocages IP comptent chaque blocage appliqué par Fort.',
     'Login failures (24h)' => 'Échecs de connexion (24 h)',
@@ -208,6 +210,9 @@ return [
     'Webhook URL must not include credentials.' => 'L\'URL du webhook ne doit pas contenir d\'identifiants.',
     'Webhook URL must use the default HTTPS port (443).' => 'L\'URL du webhook doit utiliser le port HTTPS par défaut (443).',
     'Webhook URL host must resolve to a public IP address (no loopback, private, link-local, CGNAT, or metadata addresses).' => 'L\'hôte de l\'URL du webhook doit résoudre à une adresse IP publique (aucune adresse de bouclage, privée, locale au lien, CGNAT ou de métadonnées).',
+    'Webhook URL could not be parsed.' => 'Impossible d\'analyser l\'URL du webhook.',
+    'Webhook URL host could not be resolved.' => 'Impossible de résoudre l\'hôte de l\'URL du webhook.',
+    'This configured webhook will be refused when Fort tries to send it: {reason}' => 'Ce webhook configuré sera refusé lorsque Fort tentera de l\'envoyer : {reason}',
     'Invalid IP or CIDR on line {line}: "{value}". Use IPv4, IPv6, IPv4 CIDR, or IPv6 CIDR.' => 'IP ou CIDR invalide à la ligne {line} : « {value} ». Utilisez IPv4, IPv6, CIDR IPv4 ou CIDR IPv6.',
 
     // Active configuration (overview)
