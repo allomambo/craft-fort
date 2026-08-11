@@ -71,6 +71,9 @@ class DashboardController extends Controller
     public function actionSettings(): Response
     {
         $this->requireCpRequest();
+        // Require admin, but allow viewing when allowAdminChanges is false (read-only UI).
+        // Must be PHP: Craft 4 Twig `{% requireAdmin %}` rejects the `false` argument added in Craft 5.
+        $this->requireAdmin(false);
 
         return Plugin::getInstance()->renderPluginSettings($this, $this->cpPluginSettingsReadOnly(), 'cp-section');
     }
