@@ -397,12 +397,43 @@
   });
 
   // ── Notes edit HUD (async) ──
-  $(document).on('click', '.fort-action-edit-notes', function () {
+  $(document).on('click', '.fort-action-edit-notes', function (ev) {
     var $item = $(this);
     var ip = $item.attr('data-ip');
     var currentNotes = $item.attr('data-notes') || '';
-    var menuId = $item.closest('.menu--disclosure').attr('id');
-    var $trigger = $('[aria-controls="' + menuId + '"]');
+
+    // Craft 5 disclosure menu: trigger has aria-controls pointing at .menu--disclosure.
+    // Craft 4 menubtn: .menu is a sibling of .menubtn (no .menu--disclosure).
+    var $trigger = $();
+    var $disclosure = $item.closest('.menu--disclosure');
+    if ($disclosure.length) {
+      var menuId = $disclosure.attr('id');
+      if (menuId) {
+        $trigger = $('[aria-controls="' + menuId + '"]');
+      }
+    }
+    if (!$trigger.length) {
+      var $menu = $item.closest('.menu');
+      if ($menu.length) {
+        $trigger = $menu.prevAll('.menubtn').first();
+        if (!$trigger.length) {
+          $trigger = $menu.siblings('.menubtn').first();
+        }
+      }
+    }
+    if (!$trigger.length) {
+      $trigger = $item.closest('td').find('.menubtn, .action-btn').first();
+    }
+    if (!$trigger.length) {
+      $trigger = $item;
+    }
+
+    // Close Craft 4 menu before showing the HUD (disclosure menus usually dismiss on click).
+    if (ev && typeof ev.stopPropagation === 'function') {
+      ev.stopPropagation();
+    }
+    Garnish.Menu && Garnish.Menu.visibleMenu && Garnish.Menu.visibleMenu.hide();
+
     var $body = $('<div style="min-width:260px">' +
       '<textarea class="text fullwidth" rows="4" style="min-width:250px"></textarea>' +
       '<div class="flex flex-nowrap" style="margin-top:8px;justify-content:flex-end">' +
