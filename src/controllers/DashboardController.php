@@ -246,7 +246,7 @@ class DashboardController extends Controller
             'docTitle' => Craft::t('fort', 'Events') . ' - ' . Craft::t('fort', 'Fort'),
             'crumbs' => [
                 ['label' => Craft::t('fort', 'Fort'), 'url' => UrlHelper::cpUrl('fort/dashboard', $this->tabBaseParams())],
-                ['label' => Craft::t('fort', 'Events')],
+                ['label' => Craft::t('fort', 'Events'), 'url' => UrlHelper::cpUrl('fort/events', $this->tabBaseParams())],
             ],
             'selectedSubnavItem' => 'events',
         ], $this->fortActionUrls()), View::TEMPLATE_MODE_CP);
