@@ -9,9 +9,10 @@
 {% if fortSettingsContext == 'cp-section' %}
   {% set title = 'Settings'|t('app') %}
   {% set docTitle = title ~ ' - ' ~ 'Fort'|t('fort') %}
+  {# Craft 4 crumbs.twig requires every crumb to have a url (Craft 5 allows omitting it). #}
   {% set crumbs = [
     { label: 'Fort'|t('fort'), url: url('fort/dashboard') },
-    { label: 'Settings'|t('app') },
+    { label: 'Settings'|t('app'), url: url('fort/settings') },
   ] %}
 {% else %}
   {% set title = plugin.name %}
