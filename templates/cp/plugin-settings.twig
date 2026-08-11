@@ -1,5 +1,4 @@
-{# Admin gate is enforced in DashboardController::actionSettings() via requireAdmin(false).
-   Craft 4’s {% requireAdmin %} Twig tag does not accept an argument; Craft 5’s `{% requireAdmin false %}` would parse here but duplicates the controller check. #}
+{# Access: accessPlugin-fort (controller). Non-admins / allowAdminChanges=false get readOnly UI. #}
 
 {% extends "_layouts/cp" %}
 
