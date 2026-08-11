@@ -153,7 +153,8 @@
     {% endfor %}
   </tbody>
 </table>
-{% if showFooter %}
+{# When there are no rows at all, the tbody else-branch already shows the empty state — skip the footer so we don't double up ("No blocked…" + "No entries"). Still show the footer when rows exist but the active filter count is 0. #}
+{% if showFooter and blockedRows is not empty %}
   <div id="fort-blocked-footer" class="flex light fort-table-footer">
     <span id="fort-blocked-count">{{ '{count, plural, =0{No entries} =1{1 entry} other{# entries}}'|t('fort', { count: footerCount }) }}</span>
   </div>
