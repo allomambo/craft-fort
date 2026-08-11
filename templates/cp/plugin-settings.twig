@@ -66,10 +66,8 @@
 {% endif %}
 
 {% if readOnly %}
-  {% set fortCraftIs5 = fortCraftIs5 ?? craft.app.getVersion() starts with '5' %}
-  {% if fortCraftIs5 %}
-    {% set contentNotice = readOnlyNotice() %}
-  {% elseif not craft.app.config.general.allowAdminChanges %}
+  {# Do not call Craft 5’s readOnlyNotice() — Twig parses both if-branches, so unknown functions fatal on Craft 4. #}
+  {% if not craft.app.config.general.allowAdminChanges %}
     {% set contentNotice = 'Changes to these settings are not permitted in this environment.'|t('fort') %}
   {% else %}
     {% set contentNotice = 'Only admins are allowed to make changes to these settings.'|t('fort') %}
