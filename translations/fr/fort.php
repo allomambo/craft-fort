@@ -318,4 +318,6 @@ return [
     '(no headers emitted)' => '(aucun en-tête émis)',
     'Listeners on the EVENT_BEFORE_EMIT_SECURITY_HEADERS event may further modify these at runtime.' => 'Des écouteurs sur l\'événement EVENT_BEFORE_EMIT_SECURITY_HEADERS peuvent encore modifier ces valeurs à l\'exécution.',
     'Header values must not contain control characters.' => 'Les valeurs d\'en-tête ne doivent pas contenir de caractères de contrôle.',
+    'Changes to these settings are not permitted in this environment.' => 'Les modifications de ces paramètres ne sont pas autorisées dans cet environnement.',
+    'Only admins are allowed to make changes to these settings.' => 'Seuls les administrateurs sont autorisés à modifier ces paramètres.',
 ];

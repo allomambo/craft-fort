@@ -109,6 +109,7 @@ class DashboardController extends Controller
         $base = $this->tabBaseParams();
 
         return [
+            'fortCraftIs5' => Plugin::isCraft5(),
             'fortSaveRuntimeUrl' => UrlHelper::cpUrl('fort/save-runtime', $base),
             'fortAddBlockUrl' => UrlHelper::cpUrl('fort/add-block', $base),
             'fortUnblockUrl' => UrlHelper::cpUrl('fort/unblock', $base),

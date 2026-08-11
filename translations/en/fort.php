@@ -318,4 +318,6 @@ return [
     '(no headers emitted)' => '(no headers emitted)',
     'Listeners on the EVENT_BEFORE_EMIT_SECURITY_HEADERS event may further modify these at runtime.' => 'Listeners on the EVENT_BEFORE_EMIT_SECURITY_HEADERS event may further modify these at runtime.',
     'Header values must not contain control characters.' => 'Header values must not contain control characters.',
+    'Changes to these settings are not permitted in this environment.' => 'Changes to these settings are not permitted in this environment.',
+    'Only admins are allowed to make changes to these settings.' => 'Only admins are allowed to make changes to these settings.',
 ];

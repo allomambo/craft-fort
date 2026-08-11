@@ -62,62 +62,89 @@
             {% endif %}
           </td>
           <td class="thin">
-            {% set fortRowActionItems = [
-              {
-                icon: 'clipboard',
-                label: 'Copy IP'|t('fort'),
-                attributes: {
-                  class: ['fort-action-copy-ip'],
-                  data: { ip: row.clientIp },
-                },
-              },
-              {
-                icon: 'magnifying-glass',
-                label: 'Trace IP'|t('fort'),
-                url: 'https://abuseipdb.com/check/' ~ row.clientIp,
-                attributes: {
-                  target: '_blank',
-                  rel: 'noopener noreferrer',
-                },
-              },
-            ] %}
-            {% if currentUser.admin %}
-              {% set fortRowActionItems = fortRowActionItems|merge([
-                row.blocked ? {
-                  icon: 'unlock',
-                  label: 'Unblock'|t('fort'),
+            {% set fortCraftIs5 = fortCraftIs5 ?? craft.app.getVersion() starts with '5' %}
+            {% if fortCraftIs5 %}
+              {% set fortRowActionItems = [
+                {
+                  icon: 'clipboard',
+                  label: 'Copy IP'|t('fort'),
                   attributes: {
-                    class: ['fort-action-unblock'],
-                    data: { ip: row.clientIp },
-                  },
-                } : {
-                  icon: 'lock',
-                  label: 'Reblock'|t('fort'),
-                  attributes: {
-                    class: ['fort-action-reblock'],
+                    class: ['fort-action-copy-ip'],
                     data: { ip: row.clientIp },
                   },
                 },
                 {
-                  icon: 'pencil',
-                  label: row.notes ? 'Edit notes'|t('fort') : 'Add notes'|t('fort'),
+                  icon: 'magnifying-glass',
+                  label: 'Trace IP'|t('fort'),
+                  url: 'https://abuseipdb.com/check/' ~ row.clientIp,
                   attributes: {
-                    class: ['fort-action-edit-notes'],
-                    data: { ip: row.clientIp, notes: row.notes|default('') },
+                    target: '_blank',
+                    rel: 'noopener noreferrer',
                   },
                 },
-              ]) %}
+              ] %}
+              {% if currentUser.admin %}
+                {% set fortRowActionItems = fortRowActionItems|merge([
+                  row.blocked ? {
+                    icon: 'unlock',
+                    label: 'Unblock'|t('fort'),
+                    attributes: {
+                      class: ['fort-action-unblock'],
+                      data: { ip: row.clientIp },
+                    },
+                  } : {
+                    icon: 'lock',
+                    label: 'Reblock'|t('fort'),
+                    attributes: {
+                      class: ['fort-action-reblock'],
+                      data: { ip: row.clientIp },
+                    },
+                  },
+                  {
+                    icon: 'pencil',
+                    label: row.notes ? 'Edit notes'|t('fort') : 'Add notes'|t('fort'),
+                    attributes: {
+                      class: ['fort-action-edit-notes'],
+                      data: { ip: row.clientIp, notes: row.notes|default('') },
+                    },
+                  },
+                ]) %}
+              {% endif %}
+              {% include '_includes/disclosuremenu' with {
+                withButton: true,
+                buttonLabel: null,
+                buttonHtml: null,
+                buttonAttributes: {
+                  class: ['action-btn', 'small', 'hairline'],
+                },
+                hiddenLabel: 'Actions'|t('fort'),
+                items: fortRowActionItems,
+              } %}
+            {% else %}
+              <div class="btn menubtn" data-icon="settings" title="{{ 'Actions'|t('fort') }}" aria-label="{{ 'Actions'|t('fort') }}"></div>
+              <div class="menu">
+                <ul>
+                  <li>
+                    <a class="fort-action-copy-ip" data-ip="{{ row.clientIp }}">{{ 'Copy IP'|t('fort') }}</a>
+                  </li>
+                  <li>
+                    <a href="https://abuseipdb.com/check/{{ row.clientIp }}" target="_blank" rel="noopener noreferrer">{{ 'Trace IP'|t('fort') }}</a>
+                  </li>
+                  {% if currentUser.admin %}
+                    <li>
+                      {% if row.blocked %}
+                        <a class="fort-action-unblock" data-ip="{{ row.clientIp }}">{{ 'Unblock'|t('fort') }}</a>
+                      {% else %}
+                        <a class="fort-action-reblock" data-ip="{{ row.clientIp }}">{{ 'Reblock'|t('fort') }}</a>
+                      {% endif %}
+                    </li>
+                    <li>
+                      <a class="fort-action-edit-notes" data-ip="{{ row.clientIp }}" data-notes="{{ row.notes|default('')|e('html_attr') }}">{{ row.notes ? 'Edit notes'|t('fort') : 'Add notes'|t('fort') }}</a>
+                    </li>
+                  {% endif %}
+                </ul>
+              </div>
             {% endif %}
-            {% include '_includes/disclosuremenu' with {
-              withButton: true,
-              buttonLabel: null,
-              buttonHtml: null,
-              buttonAttributes: {
-                class: ['action-btn', 'small', 'hairline'],
-              },
-              hiddenLabel: 'Actions'|t('fort'),
-              items: fortRowActionItems,
-            } %}
           </td>
         {% endif %}
       </tr>

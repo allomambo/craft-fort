@@ -1,103 +1,102 @@
-{%- set type = type ?? 'text' %}
-{%- set autocomplete = autocomplete ?? false %}
+{#-
+  Craft 4/5–safe text input with optional unit/suffix (Fort settings + runtime modal).
+  Avoids Craft 5–only Twig helpers (explodeClass, parseAttr, getAutofocusPreferred).
+-#}
+{%- set type = type ?? 'text' -%}
+{%- set id = id ?? ('text' ~ random()) -%}
+{%- set descriptionId = descriptionId ?? (id ~ '-desc') -%}
+{%- set suffix = suffix ?? unit ?? false -%}
+{%- set hasSuffix = suffix is not same as(false) -%}
+{%- set orientation = orientation ?? craft.app.locale.getOrientation() -%}
+{%- set extraInputAttributes = inputAttributes ?? {} -%}
 
-{%- set class = (class ?? [])|explodeClass|merge([
-    'text',
-    not (size ?? false) ? 'fullwidth' : null,
-]|filter) %}
-{%- set id = id ?? "text#{random()}" %}
-{%- set descriptionId = descriptionId ?? "#{id}-desc" %}
+{%- set classList = ['text'] -%}
+{%- if not (size ?? false) -%}
+  {%- set classList = classList|merge(['fullwidth']) -%}
+{%- endif -%}
+{%- if class is defined and class -%}
+  {%- if class is iterable -%}
+    {%- set classList = classList|merge(class) -%}
+  {%- else -%}
+    {%- set classList = classList|merge(class|split(' ')) -%}
+  {%- endif -%}
+{%- endif -%}
 
-{%- set orientation = orientation ?? inputAttributes.dir ?? craft.app.locale.getOrientation() %}
-{%- set expanded = expanded ?? ((role ?? false) == 'combobox' ? 'false' : false) %}
+{%- set describedByParts = [] -%}
+{%- if describedBy ?? false -%}
+  {%- set describedByParts = describedByParts|merge([describedBy]) -%}
+{%- endif -%}
+{%- if hasSuffix -%}
+  {%- set describedByParts = describedByParts|merge([descriptionId]) -%}
+{%- endif -%}
 
-{%- set suffix = suffix ?? unit ?? false %}
-{%- set hasSuffix = suffix is not same as(false) %}
+{%- set tagAttributes = {
+  class: classList|join(' '),
+  type: type,
+  id: id,
+  name: name ?? false,
+  value: value ?? false,
+  size: size ?? false,
+  maxlength: maxlength ?? false,
+  min: min ?? false,
+  max: max ?? false,
+  step: step ?? false,
+  placeholder: placeholder ?? false,
+  title: title ?? false,
+  disabled: disabled ?? false,
+  readonly: readonly ?? false,
+  inputmode: inputmode ?? false,
+  dir: orientation,
+  autocomplete: autocomplete is defined
+    ? (autocomplete is same as(true) ? 'on' : (autocomplete is same as(false) ? 'off' : autocomplete))
+    : 'off',
+  autofocus: (autofocus ?? false) and not craft.app.request.isMobileBrowser(true) ? true : false,
+} -%}
+{%- if describedByParts|length -%}
+  {%- set tagAttributes = tagAttributes|merge({ 'aria-describedby': describedByParts|join(' ') }) -%}
+{%- endif -%}
+{%- if labelledBy ?? false -%}
+  {%- set tagAttributes = tagAttributes|merge({ 'aria-labelledby': labelledBy }) -%}
+{%- endif -%}
+{%- set tagAttributes = tagAttributes|merge(extraInputAttributes, recursive=true) -%}
 
-{%- set inputAttributes = {
-    class: class,
-    type: type,
-    id: id,
-    inputmode: inputmode ?? false,
-    size: size ?? false,
-    name: name ?? false,
-    value: value ?? false,
-    maxlength: maxlength ?? false,
-    autofocus: (autofocus ?? false) and currentUser and currentUser.getAutofocusPreferred() and not craft.app.request.isMobileBrowser(true),
-    autocomplete: autocomplete is boolean ? (autocomplete ? 'on' : 'off') : autocomplete,
-    autocorrect: (autocorrect ?? true) ? false : 'off',
-    autocapitalize: (autocapitalize ?? true) ? false : 'none',
-    disabled: disabled ?? false,
-    readonly: readonly ?? false,
-    title: title ?? false,
-    placeholder: placeholder ?? false,
-    step: step ?? false,
-    min: min ?? false,
-    max: max ?? false,
-    dir: orientation,
-    role: role ?? false,
-    aria: {
-        labelledby: (inputAttributes.aria.label ?? false) ? false : (labelledBy ?? false),
-        describedby: [
-            describedBy ?? null,
-            hasSuffix ? descriptionId : null,
-        ]|filter|join(' ') ?: false,
-        expanded: expanded,
-    },
-}|merge(inputAttributes ?? [], recursive=true) %}
+{%- set input = tag('input', tagAttributes) -%}
 
-{%- if block('attr') is defined %}
-    {%- set inputAttributes = inputAttributes|merge(('<div ' ~ block('attr') ~ '>')|parseAttr, recursive=true) %}
-{%- endif %}
-
-{%- if showCharsLeft ?? false %}
-    {%- set inputAttributes = inputAttributes|merge({
-        data: {
-            'show-chars-left': showCharsLeft,
-        },
-        style: {
-            ("padding-#{orientation == 'ltr' ? 'right' : 'left'}"): (maxlength ?? false) ? "#{7.2*maxlength|length+14}px",
-        },
-    }, recursive=true) %}
-{%- endif %}
-
-{%- set input = tag('input', inputAttributes) %}
-
-{%- if hasSuffix %}
-    {% css %}
-    .fort-unit-flex {
-        display: flex;
-        align-items: stretch;
-        gap: 0;
-    }
-    .fort-unit-flex > div:first-child {
-        flex: 1;
-        min-width: 0;
-    }
-    .fort-unit-flex > div:first-child .text {
-        border-end-end-radius: 0;
-        border-start-end-radius: 0;
-    }
-    .fort-unit-flex > [aria-hidden] {
-        display: flex;
-        align-items: center;
-        padding: 0 10px;
-        background: var(--gray-050, hsl(212, 60%, 97%));
-        border: var(--input-border, 1px solid hsl(212, 25%, 85%));
-        border-inline-start: none;
-        border-end-end-radius: var(--input-border-radius, var(--radius-lg, 3px));
-        border-start-end-radius: var(--input-border-radius, var(--radius-lg, 3px));
-        white-space: nowrap;
-        font-size: 0.875rem;
-        color: var(--medium-text-color, var(--fg-subtle, #596673));
-        line-height: 1;
-    }
-    {% endcss %}
-    <span id="{{ descriptionId }}" class="visually-hidden">{{ 'Value suffixed by "{suffix}".'|t('app', {suffix: suffix}) }}</span>
-    <div class="flex fort-unit-flex">
-        <div>{{ input|raw }}</div>
-        <div aria-hidden="true">{{ suffix }}</div>
-    </div>
-{%- else %}
-    {{- input|raw }}
-{%- endif %}
+{%- if hasSuffix -%}
+  {% css %}
+  .fort-unit-flex {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+  }
+  .fort-unit-flex > div:first-child {
+      flex: 1;
+      min-width: 0;
+  }
+  .fort-unit-flex > div:first-child .text {
+      border-end-end-radius: 0;
+      border-start-end-radius: 0;
+  }
+  .fort-unit-flex > [aria-hidden] {
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      background: var(--gray-050, hsl(212, 60%, 97%));
+      border: var(--input-border, 1px solid hsl(212, 25%, 85%));
+      border-inline-start: none;
+      border-end-end-radius: var(--input-border-radius, var(--radius-lg, 3px));
+      border-start-end-radius: var(--input-border-radius, var(--radius-lg, 3px));
+      white-space: nowrap;
+      font-size: 0.875rem;
+      color: var(--medium-text-color, var(--fg-subtle, #596673));
+      line-height: 1;
+  }
+  {% endcss %}
+  <span id="{{ descriptionId }}" class="visually-hidden">{{ 'Value suffixed by "{suffix}".'|t('app', {suffix: suffix}) }}</span>
+  <div class="flex fort-unit-flex">
+    <div>{{ input|raw }}</div>
+    <div aria-hidden="true">{{ suffix }}</div>
+  </div>
+{%- else -%}
+  {{- input|raw -}}
+{%- endif -%}
