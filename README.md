@@ -2,11 +2,11 @@
 
 # Fort for Craft CMS
 
-Application-level security for Craft CMS 5 — HTTP rate limiting, login failure monitoring, automatic IP blocking, email digests, webhooks, and a full Control Panel dashboard.
+Application-level security for Craft CMS 4 and 5 — HTTP rate limiting, login failure monitoring, automatic IP blocking, email digests, webhooks, and a full Control Panel dashboard.
 
 ## Requirements
 
-- Craft CMS **5.0.0** or later
+- Craft CMS **4.0.0** or **5.0.0** or later
 - PHP **8.2** or later
 
 ## Installation

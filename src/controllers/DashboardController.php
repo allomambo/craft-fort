@@ -71,6 +71,10 @@ class DashboardController extends Controller
     public function actionSettings(): Response
     {
         $this->requireCpRequest();
+        // Do not requireAdmin(): Fort advertises Settings in the CP subnav to anyone with
+        // accessPlugin-fort, and hasReadOnlyCpSettings serves a read-only UI for non-admins
+        // (and when allowAdminChanges is false). Save still goes through Craft’s admin-only
+        // plugins/save-plugin-settings action.
 
         return Plugin::getInstance()->renderPluginSettings($this, $this->cpPluginSettingsReadOnly(), 'cp-section');
     }
@@ -109,6 +113,7 @@ class DashboardController extends Controller
         $base = $this->tabBaseParams();
 
         return [
+            'fortCraftIs5' => Plugin::isCraft5(),
             'fortSaveRuntimeUrl' => UrlHelper::cpUrl('fort/save-runtime', $base),
             'fortAddBlockUrl' => UrlHelper::cpUrl('fort/add-block', $base),
             'fortUnblockUrl' => UrlHelper::cpUrl('fort/unblock', $base),
@@ -159,9 +164,10 @@ class DashboardController extends Controller
             'fortCurrentIpExcluded' => $fortCurrentIpExcluded,
             'title' => Craft::t('fort', 'Dashboard'),
             'docTitle' => Craft::t('fort', 'Dashboard') . ' - ' . Craft::t('fort', 'Fort'),
+            // Craft 4 crumbs.twig requires every crumb to have a url (Craft 5 allows omitting it).
             'crumbs' => [
                 ['label' => Craft::t('fort', 'Fort'), 'url' => UrlHelper::cpUrl('fort/dashboard', $this->tabBaseParams())],
-                ['label' => Craft::t('fort', 'Dashboard')],
+                ['label' => Craft::t('fort', 'Dashboard'), 'url' => UrlHelper::cpUrl('fort/dashboard', $this->tabBaseParams())],
             ],
             'selectedSubnavItem' => 'dashboard',
         ], $this->fortActionUrls()), View::TEMPLATE_MODE_CP);
@@ -185,7 +191,7 @@ class DashboardController extends Controller
             'docTitle' => Craft::t('fort', 'Blocked IPs') . ' - ' . Craft::t('fort', 'Fort'),
             'crumbs' => [
                 ['label' => Craft::t('fort', 'Fort'), 'url' => UrlHelper::cpUrl('fort/dashboard', $this->tabBaseParams())],
-                ['label' => Craft::t('fort', 'Blocked IPs')],
+                ['label' => Craft::t('fort', 'Blocked IPs'), 'url' => UrlHelper::cpUrl('fort/blocked', $this->tabBaseParams())],
             ],
             'selectedSubnavItem' => 'blocked',
         ], $this->fortActionUrls()), View::TEMPLATE_MODE_CP);
@@ -213,7 +219,7 @@ class DashboardController extends Controller
             'docTitle' => Craft::t('fort', 'Alerts') . ' - ' . Craft::t('fort', 'Fort'),
             'crumbs' => [
                 ['label' => Craft::t('fort', 'Fort'), 'url' => UrlHelper::cpUrl('fort/dashboard', $this->tabBaseParams())],
-                ['label' => Craft::t('fort', 'Alerts')],
+                ['label' => Craft::t('fort', 'Alerts'), 'url' => UrlHelper::cpUrl('fort/alerts', $this->tabBaseParams())],
             ],
             'selectedSubnavItem' => 'alerts',
         ], $this->fortActionUrls()), View::TEMPLATE_MODE_CP);
@@ -241,7 +247,7 @@ class DashboardController extends Controller
             'docTitle' => Craft::t('fort', 'Events') . ' - ' . Craft::t('fort', 'Fort'),
             'crumbs' => [
                 ['label' => Craft::t('fort', 'Fort'), 'url' => UrlHelper::cpUrl('fort/dashboard', $this->tabBaseParams())],
-                ['label' => Craft::t('fort', 'Events')],
+                ['label' => Craft::t('fort', 'Events'), 'url' => UrlHelper::cpUrl('fort/events', $this->tabBaseParams())],
             ],
             'selectedSubnavItem' => 'events',
         ], $this->fortActionUrls()), View::TEMPLATE_MODE_CP);

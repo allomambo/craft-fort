@@ -56,7 +56,8 @@
     {% endfor %}
   </tbody>
 </table>
-{% if showFooter %}
+{# Skip footer when tbody already shows the empty state ("No events…" + "No entries"). #}
+{% if showFooter and eventRows is not empty %}
   <div class="flex light fort-table-footer">
     <span{% if footerId %} id="{{ footerId }}"{% endif %}>{{ '{count, plural, =0{No entries} =1{1 entry} other{# entries}}'|t('fort', { count: eventRows|length }) }}</span>
   </div>

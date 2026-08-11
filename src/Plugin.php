@@ -5,6 +5,7 @@ namespace allomambo\fort;
 use Craft;
 use allomambo\fort\helpers\ConfigOverrideHelper;
 use allomambo\fort\helpers\FortClientIp;
+use allomambo\fort\helpers\FortCp;
 use allomambo\fort\helpers\RuntimePresenter;
 use craft\base\Model;
 use craft\base\Plugin as BasePlugin;
@@ -21,6 +22,8 @@ use craft\web\Application as WebApplication;
 use craft\web\Controller;
 use craft\web\UrlManager;
 use craft\web\View;
+use Twig\Extension\AbstractExtension;
+use Twig\TwigFunction;
 use yii\base\Event;
 use yii\base\InvalidConfigException;
 use yii\web\Response as YiiResponse;
@@ -37,6 +40,14 @@ class Plugin extends BasePlugin
     public bool $hasCpSection = true;
 
     public bool $hasReadOnlyCpSettings = true;
+
+    /**
+     * Whether the running Craft app is Craft 5+.
+     */
+    public static function isCraft5(): bool
+    {
+        return version_compare(Craft::$app->getVersion(), '5.0.0-alpha', '>=');
+    }
 
     public static function config(): array
     {
@@ -85,6 +96,16 @@ class Plugin extends BasePlugin
                 }
             }
         );
+
+        // Craft 4 Twig has no craft.cp.elementHtml / elementChip(); expose a dual-compatible helper.
+        Craft::$app->getView()->registerTwigExtension(new class () extends AbstractExtension {
+            public function getFunctions(): array
+            {
+                return [
+                    new TwigFunction('fortElementChip', [FortCp::class, 'elementChipHtml'], ['is_safe' => ['html']]),
+                ];
+            }
+        });
 
         // Without explicit rules, CP template resolution can render plugin templates without hitting controllers (Commerce-style).
         // Overview stays at `fort/dashboard`; other subpages use `fort/settings`, `fort/blocked`, etc. Legacy `fort/dashboard/*`
@@ -311,7 +332,7 @@ class Plugin extends BasePlugin
         $view = Craft::$app->getView();
         $settingsHtml = $view->namespaceInputs(function () use ($readOnly) {
             if ($readOnly) {
-                return (string) Html::disableInputs(fn() => $this->settingsHtml());
+                return $this->renderSettingsHtmlReadOnly();
             }
 
             return (string) $this->settingsHtml();
@@ -330,6 +351,7 @@ class Plugin extends BasePlugin
             'plugin' => $this,
             'settingsHtml' => $settingsHtml,
             'readOnly' => $readOnly,
+            'fortCraftIs5' => self::isCraft5(),
             'selectedTab' => $this->resolveSettingsTab(),
             'fortSettingsContext' => $context,
             'fortActiveRuntimeOverrides' => $fortActiveRuntimeOverrides,
@@ -359,7 +381,10 @@ class Plugin extends BasePlugin
         $item['label'] = Craft::t('fort', 'Fort');
         // Parent URL must be a prefix of every subnav URL (Craft CP). Use `fort` so `fort/dashboard`, `fort/settings`, … work.
         $item['url'] = 'fort';
-        $item['icon'] = 'shield';
+        // Craft 5 accepts FA icon names; Craft 4 expects the SVG path from parent::getCpNavItem().
+        if (self::isCraft5()) {
+            $item['icon'] = 'shield';
+        }
         $item['subnav'] = [
             'dashboard' => [
                 'label' => Craft::t('fort', 'Dashboard'),
@@ -397,6 +422,18 @@ class Plugin extends BasePlugin
     public static function getTemplatesRoot(): string
     {
         return dirname(__DIR__) . DIRECTORY_SEPARATOR . 'templates';
+    }
+
+    /**
+     * Render settings HTML with inputs disabled (Craft 5.6+ helper, fieldset fallback otherwise).
+     */
+    private function renderSettingsHtmlReadOnly(): string
+    {
+        if (method_exists(Html::class, 'disableInputs')) {
+            return (string) Html::disableInputs(fn() => $this->settingsHtml());
+        }
+
+        return '<fieldset disabled>' . (string) $this->settingsHtml() . '</fieldset>';
     }
 
     /**

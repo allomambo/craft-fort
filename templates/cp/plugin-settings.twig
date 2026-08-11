@@ -1,4 +1,4 @@
-{% requireAdmin false %}
+{# Access: accessPlugin-fort (controller). Non-admins / allowAdminChanges=false get readOnly UI. #}
 
 {% extends "_layouts/cp" %}
 
@@ -8,9 +8,10 @@
 {% if fortSettingsContext == 'cp-section' %}
   {% set title = 'Settings'|t('app') %}
   {% set docTitle = title ~ ' - ' ~ 'Fort'|t('fort') %}
+  {# Craft 4 crumbs.twig requires every crumb to have a url (Craft 5 allows omitting it). #}
   {% set crumbs = [
     { label: 'Fort'|t('fort'), url: url('fort/dashboard') },
-    { label: 'Settings'|t('app') },
+    { label: 'Settings'|t('app'), url: url('fort/settings') },
   ] %}
 {% else %}
   {% set title = plugin.name %}
@@ -65,7 +66,12 @@
 {% endif %}
 
 {% if readOnly %}
-  {% set contentNotice = readOnlyNotice() %}
+  {# Do not call Craft 5’s readOnlyNotice() — Twig parses both if-branches, so unknown functions fatal on Craft 4. #}
+  {% if not craft.app.config.general.allowAdminChanges %}
+    {% set contentNotice = 'Changes to these settings are not permitted in this environment.'|t('fort') %}
+  {% else %}
+    {% set contentNotice = 'Only admins are allowed to make changes to these settings.'|t('fort') %}
+  {% endif %}
 {% endif %}
 
 {% block content %}

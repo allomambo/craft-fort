@@ -1,13 +1,6 @@
 {# @param triggeringUser craft\elements\User|null #}
 {% if triggeringUser is defined and triggeringUser %}
-  {{ elementChip(triggeringUser, {
-    size: 'small',
-    showThumb: true,
-    showLabel: true,
-    showStatus: false,
-    hyperlink: true,
-    attributes: { class: ['chromeless'] },
-  }) }}
+  {{ fortElementChip(triggeringUser) }}
 {% else %}
   —
 {% endif %}
