@@ -1,3 +1,4 @@
+{% autoescape 'html' %}
 <!DOCTYPE html>
 <html lang="{{ language }}">
 <head>
@@ -7,6 +8,9 @@
   <meta name="supported-color-schemes" content="light dark">
   <title>{{ heading }}</title>
   <style>
+    @media only screen and (max-width: 620px) {
+      .fort-card { width: 100% !important; max-width: 100% !important; }
+    }
     @media (prefers-color-scheme: dark) {
       .fort-bg { background: #121417 !important; }
       .fort-card { background: #1c1f24 !important; border-color: #2c3138 !important; }
@@ -126,3 +130,4 @@
   </table>
 </body>
 </html>
+{% endautoescape %}

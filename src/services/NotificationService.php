@@ -260,7 +260,9 @@ class NotificationService extends Component
             unset($displayPayload['blockApplyFailed']);
         }
 
-        $json = json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $emailPayload = $payload;
+        unset($emailPayload['attemptedLogin']);
+        $json = json_encode($emailPayload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
         return $this->composeMessage($subject, [
             'tone' => 'alert',
