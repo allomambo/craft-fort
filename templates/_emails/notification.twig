@@ -21,6 +21,7 @@
       .fort-box { background-color: #000000 !important; border-color: #E4E4E4 !important; }
       .fort-pre, .fort-code { background-color: #F5EFED !important; color: #000000 !important; border: 0 !important; }
       .fort-link, .fort-go path { color: #8BBDF8 !important; fill: #8BBDF8 !important; }
+      .fort-footer-link { color: #E4E4E4 !important; }
       .fort-btn { background-color: #FFFFFF !important; }
       .fort-btn a { color: #000000 !important; }
     }
@@ -142,7 +143,7 @@
           </tr>
           <tr>
             <td align="center" style="padding:28px 16px 0;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.5;color:#000000;">
-              <p class="fort-muted" style="margin:0;color:#000000;">{{ footer }}</p>
+              <p class="fort-muted" style="margin:0;color:#000000;">{{ footerHtml|raw }}</p>
               {% if dateNote %}
                 <p class="fort-muted" style="margin:8px 0 0;color:#000000;">{{ dateNote }}</p>
               {% endif %}

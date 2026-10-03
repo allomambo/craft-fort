@@ -254,7 +254,7 @@ return [
     'Open dashboard' => 'Ouvrir le tableau de bord',
     'View alerts' => 'Voir les alertes',
     'Technical details' => 'Détails techniques',
-    'You are receiving this because you are a Fort maintainer for {site}.' => 'Vous recevez ce message parce que vous êtes un mainteneur Fort pour {site}.',
+    'You are receiving this because you are an {site} maintainer.' => 'Vous recevez ce message parce que vous êtes un mainteneur {site}.',
     'Fort site icon' => 'Icône de site Fort',
     'Favicon found in the web root for notification emails.' => 'Favicon trouvé dans la racine web pour les courriels de notification.',
 
