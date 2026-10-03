@@ -48,7 +48,7 @@ class AlertDisplayHelper
 
     /**
      * @param array<string, mixed> $payload
-     * @return array<int, array{label: string, value: string}>
+     * @return array<int, array{key: string, label: string, value: string}>
      */
     public static function metaTableRows(array $payload): array
     {
@@ -89,6 +89,7 @@ class AlertDisplayHelper
                 continue;
             }
             $rows[] = [
+                'key' => $key,
                 'label' => self::metaKeyLabel($key),
                 'value' => self::formatMetaValue($key, $payload[$key]),
             ];
@@ -100,12 +101,44 @@ class AlertDisplayHelper
                 continue;
             }
             $rows[] = [
+                'key' => $key,
                 'label' => (string) $key,
                 'value' => self::formatMetaValue($key, $value),
             ];
         }
 
         return $rows;
+    }
+
+    /**
+     * Human-readable rows for notification emails.
+     *
+     * The attempted login is omitted: it is often an email address. For `login_threshold`,
+     * a known Craft user ID is listed first instead.
+     *
+     * @param array<string, mixed> $payload
+     * @return array<int, array{key: string, label: string, value: string}>
+     */
+    public static function emailSummaryRows(string $eventType, array $payload): array
+    {
+        unset($payload['attemptedLogin']);
+        $rows = self::metaTableRows($payload);
+
+        if ($eventType !== 'login_threshold') {
+            return $rows;
+        }
+
+        $userIdRow = null;
+        $rest = [];
+        foreach ($rows as $row) {
+            if ($row['key'] === 'userId') {
+                $userIdRow = $row;
+                continue;
+            }
+            $rest[] = $row;
+        }
+
+        return $userIdRow === null ? $rows : array_merge([$userIdRow], $rest);
     }
 
     /**

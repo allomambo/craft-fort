@@ -96,10 +96,14 @@ Event::on(
 
 Immediate email alerts to selected maintainer users when a threshold is crossed or an IP is blocked. Throttled to a maximum of 20 emails per hour to prevent notification floods during distributed attacks.
 
+Messages are HTML with a plain-text fallback. Fort renders each copy in that recipient’s Control Panel language. A login-threshold alert includes the Craft user ID when it is known, and does not include the attempted email or username in the summary.
+
 #### Digest Emails
 
 - **Daily digest** — summary of events, sent at a configurable hour
 - **Weekly digest** — summary of events, sent on a configurable day of the week
+
+Digests use the same HTML layout and per-recipient language as significant-event emails.
 
 Digests can be sent via server cron (recommended) or through a built-in pseudo-cron that triggers after ordinary web requests.
 
