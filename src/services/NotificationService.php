@@ -19,6 +19,9 @@ use craft\base\Component;
 
 class NotificationService extends Component
 {
+    /** Resolved webroot favicon. Lives until Utilities → Caches clears it. */
+    public const SITE_ICON_CACHE_KEY = 'fort:site-icon';
+
     private const PSEUDO_CRON_CACHE_KEY = 'fort:digest:throttle';
 
     private const PSEUDO_CRON_CACHE_TTL_SECONDS = 45;
@@ -211,7 +214,9 @@ class NotificationService extends Component
     private function renderDigest(string $which, array $counts, string $dashboardUrl): array
     {
         $daily = $which === 'daily';
-        $subject = Craft::t('fort', $daily ? '[Fort] Daily security digest' : '[Fort] Weekly security digest');
+        $subject = Craft::t('fort', $daily ? '[Fort] {site}: Daily security digest' : '[Fort] {site}: Weekly security digest', [
+            'site' => $this->siteIdentity()['label'],
+        ]);
         $heading = $daily
             ? Craft::t('fort', 'Daily security digest')
             : Craft::t('fort', 'Weekly security digest');
@@ -221,14 +226,12 @@ class NotificationService extends Component
             ['label' => Craft::t('fort', 'HTTP rate limits'), 'value' => (string) $counts['http_rate_limited']],
             ['label' => Craft::t('fort', 'IPs blocked (events)'), 'value' => (string) $counts['ip_blocked']],
         ];
-        $actionLabel = Craft::t('fort', 'Open dashboard');
+        $critical = ((int) $counts['login_failure'] + (int) $counts['http_rate_limited'] + (int) $counts['ip_blocked']) > 0;
 
         return $this->composeMessage($subject, [
-            'tone' => 'digest',
-            'kicker' => null,
             'heading' => $heading,
-            'code' => null,
             'intro' => $intro,
+            'critical' => $critical,
             'rows' => [],
             'stats' => $stats,
             'notes' => [],
@@ -236,7 +239,7 @@ class NotificationService extends Component
             'details' => null,
             'dateNote' => null,
             'actionUrl' => $dashboardUrl,
-            'actionLabel' => $actionLabel,
+            'actionLabel' => Craft::t('fort', 'Open dashboard'),
         ]);
     }
 
@@ -247,9 +250,13 @@ class NotificationService extends Component
     private function renderSignificantEvent(string $eventType, array $payload, string $alertsUrl): array
     {
         $label = AlertDisplayHelper::alertTypeLabel($eventType);
-        $subject = Craft::t('fort', '[Fort] {event}', ['event' => $label]);
+        $subject = Craft::t('fort', '[Fort] {site}: {event}', [
+            'site' => $this->siteIdentity()['label'],
+            'event' => $label,
+        ]);
         $displayPayload = $payload;
         $notes = [];
+        $intro = $this->eventSummary($eventType, $payload);
 
         if (!empty($payload['isPermanent'])) {
             $notes[] = Craft::t('fort', 'Permanent block (no automatic expiry).');
@@ -264,13 +271,19 @@ class NotificationService extends Component
         unset($emailPayload['attemptedLogin']);
         $json = json_encode($emailPayload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
+        $rows = AlertDisplayHelper::emailSummaryRows($eventType, $displayPayload);
+        array_unshift($rows, [
+            'key' => 'type',
+            'label' => Craft::t('fort', 'Type'),
+            'value' => $eventType,
+            'code' => true,
+        ]);
+
         return $this->composeMessage($subject, [
-            'tone' => 'alert',
-            'kicker' => Craft::t('fort', 'Significant event'),
             'heading' => $label,
-            'code' => $eventType,
-            'intro' => Craft::t('fort', 'Fort recorded this security event.'),
-            'rows' => AlertDisplayHelper::emailSummaryRows($eventType, $displayPayload),
+            'intro' => $intro,
+            'critical' => true,
+            'rows' => $rows,
             'stats' => [],
             'notes' => $notes,
             'detailsLabel' => Craft::t('fort', 'Technical details'),
@@ -282,21 +295,274 @@ class NotificationService extends Component
     }
 
     /**
+     * Craft system name plus the primary site, so a maintainer with several Fort installs can tell them apart.
+     *
+     * @return array{name: string, host: ?string, url: ?string, label: string}
+     */
+    private function siteIdentity(): array
+    {
+        $name = (string) Craft::$app->getSystemName();
+        $url = (string) Craft::$app->getSites()->getPrimarySite()->getBaseUrl();
+        $host = parse_url($url, PHP_URL_HOST);
+        $host = is_string($host) && $host !== '' ? $host : null;
+        $label = $host !== null && strcasecmp($host, $name) !== 0 ? $name . ' · ' . $host : $name;
+
+        return [
+            'name' => $name,
+            'host' => $host,
+            'url' => $url !== '' ? $url : null,
+            'label' => $label,
+        ];
+    }
+
+    /**
+     * One sentence above the button. The full field table comes after it.
+     *
+     * @param array<string, mixed> $payload
+     */
+    private function eventSummary(string $eventType, array $payload): ?string
+    {
+        if ($eventType === 'login_threshold' && isset($payload['failures'], $payload['windowMinutes'])) {
+            return Craft::t('fort', '{failures} failed login attempts in {window} minutes.', [
+                'failures' => $payload['failures'],
+                'window' => $payload['windowMinutes'],
+            ]);
+        }
+
+        if ($eventType === 'http_rate_limited' && isset($payload['count'], $payload['limit'])) {
+            return Craft::t('fort', '{count} requests in one minute, past the limit of {limit}.', [
+                'count' => $payload['count'],
+                'limit' => $payload['limit'],
+            ]);
+        }
+
+        return null;
+    }
+
+    /**
+     * Square mark for the site row. Craft's uploaded CP icon wins; otherwise a favicon in the webroot.
+     *
+     * @return array{path: string, mime: string, name: string, temp: bool}|null
+     */
+    private function siteIconFile(): ?array
+    {
+        return $this->rebrandIconFile() ?? $this->webrootFaviconFile();
+    }
+
+    /**
+     * @return array{path: string, mime: string, name: string, temp: bool}|null
+     */
+    private function rebrandIconFile(): ?array
+    {
+        $dir = Craft::$app->getPath()->getRebrandPath(false) . DIRECTORY_SEPARATOR . 'icon';
+        if (!is_dir($dir)) {
+            return null;
+        }
+
+        $mime = [
+            'png' => 'image/png',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+        ];
+        foreach (scandir($dir) ?: [] as $name) {
+            $path = $dir . DIRECTORY_SEPARATOR . $name;
+            $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+            if (!is_file($path) || !isset($mime[$ext])) {
+                continue;
+            }
+
+            return [
+                'path' => $path,
+                'mime' => $mime[$ext],
+                'name' => 'site-icon.' . ($ext === 'jpeg' ? 'jpg' : $ext),
+                'temp' => false,
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * Known filenames at the web root, then any favicon file under it. The path is cached until caches are cleared.
+     *
+     * @return array{path: string, mime: string, name: string, temp: bool}|null
+     */
+    private function webrootFaviconFile(): ?array
+    {
+        $cache = Craft::$app->getCache();
+        $hit = $cache->get(self::SITE_ICON_CACHE_KEY);
+        if ($hit === '') {
+            return null;
+        }
+        if (is_string($hit)) {
+            return is_file($hit) ? $this->iconFromPath($hit) : null;
+        }
+
+        $path = $this->findWebrootFavicon();
+        $icon = $path !== null ? $this->iconFromPath($path) : null;
+        $cache->set(self::SITE_ICON_CACHE_KEY, $icon !== null ? $path : '', 0);
+
+        return $icon;
+    }
+
+    private function findWebrootFavicon(): ?string
+    {
+        $root = Craft::getAlias('@webroot');
+        if (!is_string($root) || !is_dir($root)) {
+            return null;
+        }
+
+        foreach (['favicon.ico', 'favicon.png', 'apple-touch-icon.png', 'apple-touch-icon-precomposed.png'] as $name) {
+            $path = $root . DIRECTORY_SEPARATOR . $name;
+            if (is_file($path) && filesize($path) <= 262144) {
+                return $path;
+            }
+        }
+
+        $skip = ['cpresources', 'node_modules', '.git'];
+        $rank = ['png' => 0, 'webp' => 1, 'jpg' => 2, 'jpeg' => 2, 'gif' => 3, 'ico' => 4];
+        $best = null;
+        $bestScore = PHP_INT_MAX;
+        $queue = [[$root, 0]];
+        while ($queue !== []) {
+            [$dir, $depth] = array_shift($queue);
+            foreach (scandir($dir) ?: [] as $name) {
+                if ($name === '.' || $name === '..' || in_array($name, $skip, true)) {
+                    continue;
+                }
+                $path = $dir . DIRECTORY_SEPARATOR . $name;
+                if (is_dir($path)) {
+                    if ($depth < 3) {
+                        $queue[] = [$path, $depth + 1];
+                    }
+                    continue;
+                }
+                if (!is_file($path) || stripos($name, 'favicon') === false || filesize($path) > 262144) {
+                    continue;
+                }
+                $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+                if (!isset($rank[$ext])) {
+                    continue;
+                }
+                $score = $depth * 10 + $rank[$ext];
+                if ($score < $bestScore) {
+                    $best = $path;
+                    $bestScore = $score;
+                }
+            }
+        }
+
+        return $best;
+    }
+
+    /**
+     * @return array{path: string, mime: string, name: string, temp: bool}|null
+     */
+    private function iconFromPath(string $path): ?array
+    {
+        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $mime = [
+            'png' => 'image/png',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+        ];
+        if (isset($mime[$ext])) {
+            return [
+                'path' => $path,
+                'mime' => $mime[$ext],
+                'name' => 'site-icon.' . ($ext === 'jpeg' ? 'jpg' : $ext),
+                'temp' => false,
+            ];
+        }
+        if ($ext !== 'ico') {
+            return null;
+        }
+
+        $bytes = file_get_contents($path);
+        if (!is_string($bytes)) {
+            return null;
+        }
+        $image = $this->asPng($bytes, 'image/x-icon');
+
+        return $image === null ? null : $this->writeIconTemp($image['bytes'], $image['mime'], $image['ext']);
+    }
+
+    /**
+     * @return array{bytes: string, mime: string, ext: string}|null
+     */
+    private function asPng(string $bytes, string $mime): ?array
+    {
+        if ($mime === 'image/png') {
+            return ['bytes' => $bytes, 'mime' => 'image/png', 'ext' => 'png'];
+        }
+        if (!class_exists(\Imagick::class)) {
+            return match ($mime) {
+                'image/jpeg' => ['bytes' => $bytes, 'mime' => $mime, 'ext' => 'jpg'],
+                'image/gif' => ['bytes' => $bytes, 'mime' => $mime, 'ext' => 'gif'],
+                'image/webp' => ['bytes' => $bytes, 'mime' => $mime, 'ext' => 'webp'],
+                default => null,
+            };
+        }
+
+        try {
+            $image = new \Imagick();
+            $image->readImageBlob($bytes);
+            $image->setIteratorIndex(0);
+            $image->setImageFormat('png');
+
+            return ['bytes' => $image->getImageBlob(), 'mime' => 'image/png', 'ext' => 'png'];
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * @return array{path: string, mime: string, name: string, temp: bool}|null
+     */
+    private function writeIconTemp(string $bytes, string $mime, string $ext): ?array
+    {
+        $path = Craft::$app->getPath()->getTempPath() . DIRECTORY_SEPARATOR . 'fort-site-icon-' . bin2hex(random_bytes(4)) . '.' . $ext;
+        if (file_put_contents($path, $bytes) === false) {
+            return null;
+        }
+
+        return [
+            'path' => $path,
+            'mime' => $mime,
+            'name' => 'site-icon.' . $ext,
+            'temp' => true,
+        ];
+    }
+
+    /**
      * @param array<string, mixed> $view
-     * @return array{subject: string, text: string, html: string}
+     * @return array{subject: string, text: string, html: string, siteIcon: ?array}
      */
     private function composeMessage(string $subject, array $view): array
     {
-        $siteName = Craft::$app->getSystemName();
+        $site = $this->siteIdentity();
+        $siteIcon = $this->siteIconFile();
+
         $view['language'] = Craft::$app->language;
-        $view['siteName'] = $siteName;
-        $view['preheader'] = $view['intro'];
-        $view['footer'] = Craft::t('fort', 'Sent by Fort for {site}.', ['site' => $siteName]);
+        $view['siteName'] = $site['name'];
+        $view['siteHost'] = $site['host'];
+        $view['siteUrl'] = $site['url'];
+        $view['iconSrc'] = '%%FORT_ICON%%';
+        $view['siteIconSrc'] = $siteIcon !== null ? '%%FORT_SITE_ICON%%' : null;
+        $view['preheader'] = $site['label'] . ' — ' . (string) ($view['heading'] ?? '');
+        $view['footer'] = Craft::t('fort', 'You are receiving this because you are a Fort maintainer for {site}.', [
+            'site' => $site['label'],
+        ]);
 
         return [
             'subject' => $subject,
             'text' => $this->plainTextMessage($subject, $view),
             'html' => $this->renderHtmlMessage($view),
+            'siteIcon' => $siteIcon,
         ];
     }
 
@@ -305,29 +571,32 @@ class NotificationService extends Component
      */
     private function plainTextMessage(string $subject, array $view): string
     {
-        $lines = [$subject, ''];
-        if (!empty($view['code'])) {
-            $lines[] = '`' . $view['code'] . '`';
-            $lines[] = '';
+        $lines = [$subject, '', 'Fort', '', (string) $view['siteName']];
+        if (!empty($view['siteUrl'])) {
+            $lines[] = (string) $view['siteUrl'];
         }
+        $lines[] = '';
+        $lines[] = (string) ($view['heading'] ?? '');
         if (!empty($view['intro'])) {
             $lines[] = (string) $view['intro'];
-            $lines[] = '';
-        }
-        foreach ($view['stats'] ?? [] as $stat) {
-            $lines[] = $stat['label'] . ': ' . $stat['value'];
-        }
-        if (!empty($view['stats'])) {
-            $lines[] = '';
-        }
-        foreach ($view['rows'] ?? [] as $row) {
-            $lines[] = $row['label'] . ': ' . $row['value'];
-        }
-        if (!empty($view['rows'])) {
-            $lines[] = '';
         }
         foreach ($view['notes'] ?? [] as $note) {
             $lines[] = $note;
+        }
+        $lines[] = '';
+        $lines[] = $view['actionLabel'] . ': ' . $view['actionUrl'];
+        $lines[] = '';
+        foreach ($view['stats'] ?? [] as $stat) {
+            $lines[] = $stat['label'] . ': ' . $stat['value'];
+        }
+        foreach ($view['rows'] ?? [] as $row) {
+            $value = (string) $row['value'];
+            if (!empty($row['code'])) {
+                $value = '`' . $value . '`';
+            }
+            $lines[] = $row['label'] . ': ' . $value;
+        }
+        if (!empty($view['stats']) || !empty($view['rows'])) {
             $lines[] = '';
         }
         if (!empty($view['details'])) {
@@ -339,8 +608,6 @@ class NotificationService extends Component
             $lines[] = (string) $view['dateNote'];
             $lines[] = '';
         }
-        $lines[] = $view['actionLabel'] . ': ' . $view['actionUrl'];
-        $lines[] = '';
         $lines[] = (string) $view['footer'];
 
         return implode("\n", $lines);
@@ -375,7 +642,7 @@ class NotificationService extends Component
      * Resolve recipients and send one {@see Message} per user, rendered in that user's
      * Control Panel language. Returns true only when every send succeeded.
      *
-     * @param callable(): array{subject: string, text: string, html: string} $render
+     * @param callable(): array{subject: string, text: string, html: string, siteIcon?: ?array} $render
      */
     private function dispatchToRecipients(callable $render): bool
     {
@@ -402,6 +669,25 @@ class NotificationService extends Component
                 $message->language = Craft::$app->language;
                 $message->setSubject($mail['subject']);
                 $message->setTextBody($mail['text']);
+                $iconPath = dirname(__DIR__) . '/resources/fort-icon.png';
+                if (is_file($iconPath)) {
+                    $cid = $message->embed($iconPath, [
+                        'fileName' => 'fort-icon.png',
+                        'contentType' => 'image/png',
+                    ]);
+                    $mail['html'] = str_replace('%%FORT_ICON%%', $cid, $mail['html']);
+                }
+                $siteIcon = $mail['siteIcon'] ?? null;
+                if (is_array($siteIcon) && is_file($siteIcon['path'])) {
+                    $cid = $message->embed($siteIcon['path'], [
+                        'fileName' => $siteIcon['name'],
+                        'contentType' => $siteIcon['mime'],
+                    ]);
+                    $mail['html'] = str_replace('%%FORT_SITE_ICON%%', $cid, $mail['html']);
+                    if (!empty($siteIcon['temp'])) {
+                        @unlink($siteIcon['path']);
+                    }
+                }
                 $message->setHtmlBody($mail['html']);
                 $sent = Craft::$app->getMailer()->send($message);
                 if (!$sent) {

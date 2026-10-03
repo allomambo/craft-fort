@@ -21,6 +21,8 @@ use craft\i18n\PhpMessageSource;
 use craft\web\Application as WebApplication;
 use craft\web\Controller;
 use craft\web\UrlManager;
+use craft\events\RegisterCacheOptionsEvent;
+use craft\utilities\ClearCaches;
 use craft\web\View;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
@@ -80,6 +82,21 @@ class Plugin extends BasePlugin
                 'allowOverrides' => true,
             ];
         }
+
+        Event::on(
+            ClearCaches::class,
+            ClearCaches::EVENT_REGISTER_CACHE_OPTIONS,
+            static function (RegisterCacheOptionsEvent $event) {
+                $event->options[] = [
+                    'key' => 'fort-site-icon',
+                    'label' => Craft::t('fort', 'Fort site icon'),
+                    'info' => Craft::t('fort', 'Favicon found in the web root for notification emails.'),
+                    'action' => static function () {
+                        Craft::$app->getCache()->delete(services\NotificationService::SITE_ICON_CACHE_KEY);
+                    },
+                ];
+            }
+        );
 
         // Ensure CP templates resolve even when getBasePath() points somewhere without a templates/ dir (e.g. some Docker/vendor layouts).
         Event::on(

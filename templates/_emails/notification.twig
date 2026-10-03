@@ -1,6 +1,6 @@
 {% autoescape 'html' %}
 <!DOCTYPE html>
-<html lang="{{ language }}">
+<html lang="{{ language }}" style="color-scheme: light dark;">
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,120 +8,142 @@
   <meta name="supported-color-schemes" content="light dark">
   <title>{{ heading }}</title>
   <style>
+    :root { color-scheme: light dark; }
     @media only screen and (max-width: 620px) {
-      .fort-card { width: 100% !important; max-width: 100% !important; }
+      .fort-wrap { width: 100% !important; max-width: 100% !important; }
     }
     @media (prefers-color-scheme: dark) {
-      .fort-bg { background: #121417 !important; }
-      .fort-card { background: #1c1f24 !important; border-color: #2c3138 !important; }
-      .fort-ink { color: #f3f4f6 !important; }
-      .fort-muted { color: #a1a7b0 !important; }
-      .fort-rule { border-color: #2c3138 !important; }
-      .fort-code { background: #2a2f36 !important; color: #f3f4f6 !important; }
-      .fort-note { background: #2a2118 !important; border-color: #5c4326 !important; color: #fdba74 !important; }
-      .fort-pre { background: #14171b !important; border-color: #2c3138 !important; color: #d1d5db !important; }
-      .fort-btn { background: #f3f4f6 !important; }
-      .fort-btn a { color: #111827 !important; }
+      .fort-bg { background-color: #0d1117 !important; }
+      .fort-text { color: #e6edf3 !important; }
+      .fort-muted { color: #9198a1 !important; }
+      .fort-line { border-bottom-color: #3d444d !important; }
+      .fort-rule { border-top-color: #3d444d !important; }
+      .fort-box { background-color: #0d1117 !important; border-color: #3d444d !important; }
+      .fort-pre { background-color: #161b22 !important; color: #e6edf3 !important; border-color: #3d444d !important; }
+      .fort-link { color: #4493f8 !important; }
     }
   </style>
 </head>
-<body class="fort-bg" style="margin:0;padding:0;background:#f3f4f6;">
+<body class="fort-bg" style="margin:0;padding:0;background:#ffffff;">
   <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">{{ preheader }}</div>
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="fort-bg" style="background:#f3f4f6;margin:0;padding:0;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="fort-bg" bgcolor="#ffffff" style="background:#ffffff;margin:0;padding:0;">
     <tr>
       <td align="center" style="padding:32px 16px;">
-        <table role="presentation" width="600" cellpadding="0" cellspacing="0" class="fort-card" style="width:600px;max-width:600px;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;border-collapse:separate;">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" class="fort-wrap" style="width:600px;max-width:600px;">
           <tr>
-            <td style="height:4px;line-height:4px;font-size:0;background:{{ tone == 'alert' ? '#9f1239' : '#111827' }};border-radius:12px 12px 0 0;">&nbsp;</td>
-          </tr>
-          <tr>
-            <td style="padding:28px 32px 0;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td class="fort-ink" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:0.16em;color:#111827;">FORT</td>
-                  <td class="fort-muted" align="right" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;color:#6b7280;">{{ siteName }}</td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:20px 32px 8px;">
-              {% if kicker %}
-                <p class="fort-muted" style="margin:0 0 6px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:#6b7280;">{{ kicker }}</p>
-              {% endif %}
-              <h1 class="fort-ink" style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:22px;line-height:1.3;font-weight:600;color:#111827;">{{ heading }}</h1>
-              {% if code %}
-                <p style="margin:10px 0 0;">
-                  <code class="fort-code" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:#111827;background:#f3f4f6;padding:3px 8px;border-radius:6px;">{{ code }}</code>
-                </p>
-              {% endif %}
-              {% if intro %}
-                <p class="fort-ink" style="margin:16px 0 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.5;color:#1f2937;">{{ intro }}</p>
-              {% endif %}
-            </td>
-          </tr>
-          {% if stats %}
-            <tr>
-              <td style="padding:8px 32px 0;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-                  {% for stat in stats %}
-                    <tr>
-                      <td class="fort-muted fort-rule" style="padding:14px 0;border-bottom:1px solid #e5e7eb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;color:#4b5563;">{{ stat.label }}</td>
-                      <td class="fort-ink fort-rule" align="right" style="padding:14px 0;border-bottom:1px solid #e5e7eb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;color:#111827;">{{ stat.value }}</td>
-                    </tr>
-                  {% endfor %}
-                </table>
-              </td>
-            </tr>
-          {% endif %}
-          {% if rows %}
-            <tr>
-              <td style="padding:8px 32px 0;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-                  {% for row in rows %}
-                    <tr>
-                      <th class="fort-muted fort-rule" scope="row" align="left" valign="top" style="width:42%;padding:10px 12px 10px 0;border-bottom:1px solid #eef0f2;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;font-weight:600;color:#6b7280;">{{ row.label }}</th>
-                      <td class="fort-ink fort-rule" valign="top" style="padding:10px 0;border-bottom:1px solid #eef0f2;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;line-height:1.45;color:#111827;word-break:break-word;">{{ row.value }}</td>
-                    </tr>
-                  {% endfor %}
-                </table>
-              </td>
-            </tr>
-          {% endif %}
-          {% if notes %}
-            <tr>
-              <td style="padding:16px 32px 0;">
-                {% for note in notes %}
-                  <p class="fort-note" style="margin:0 0 8px;padding:12px 14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;line-height:1.45;color:#9a3412;">{{ note }}</p>
-                {% endfor %}
-              </td>
-            </tr>
-          {% endif %}
-          {% if details %}
-            <tr>
-              <td style="padding:20px 32px 0;">
-                <p class="fort-muted" style="margin:0 0 8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:#6b7280;">{{ detailsLabel }}</p>
-                <pre class="fort-pre" style="margin:0;padding:12px 14px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45;color:#1f2937;white-space:pre-wrap;word-break:break-word;">{{ details }}</pre>
-              </td>
-            </tr>
-          {% endif %}
-          <tr>
-            <td style="padding:24px 32px 8px;">
+            <td style="padding:0 0 16px;">
               <table role="presentation" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td class="fort-btn" bgcolor="#111827" style="background:#111827;border-radius:8px;padding:12px 18px;">
-                    <a href="{{ actionUrl }}" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;">{{ actionLabel }}</a>
+                  <td width="44" valign="middle" style="padding:0 12px 0 0;">
+                    <img src="{{ iconSrc }}" width="32" height="32" alt="" style="display:block;border:0;outline:none;width:32px;height:32px;">
+                  </td>
+                  <td valign="middle" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+                    <p class="fort-text" style="margin:0;font-size:18px;line-height:1;font-weight:600;color:#1f2328;">Fort</p>
                   </td>
                 </tr>
               </table>
             </td>
           </tr>
           <tr>
-            <td style="padding:8px 32px 28px;">
+            <td class="fort-box" style="background:#ffffff;border:1px solid #d0d7de;border-radius:6px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                <tr>
+                  <td style="padding:24px 28px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+                    <table role="presentation" cellpadding="0" cellspacing="0">
+                      <tr>
+                        {% if siteIconSrc %}
+                          <td width="44" valign="middle" style="padding:0 12px 0 0;">
+                            <img src="{{ siteIconSrc }}" width="32" height="32" alt="" style="display:block;border:0;outline:none;width:32px;height:32px;border-radius:6px;">
+                          </td>
+                        {% endif %}
+                        <td valign="middle">
+                          <p class="fort-text" style="margin:0;font-size:14px;line-height:1.3;font-weight:600;color:#1f2328;">{{ siteName }}</p>
+                          {% if siteUrl %}
+                            <p style="margin:2px 0 0;font-size:13px;line-height:1.4;"><a class="fort-link" href="{{ siteUrl }}" style="color:#0969da;text-decoration:none;">{{ siteHost ?: siteUrl }}</a></p>
+                          {% endif %}
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="fort-rule" style="border-top:1px solid #d0d7de;padding:20px 28px 24px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td width="28" valign="top" style="padding:2px 10px 0 0;">
+                          {% if critical|default(false) %}
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 16 16" role="img" aria-hidden="true" style="display:block;">
+                              <circle cx="8" cy="8" r="8" fill="#d1242f"/>
+                              <path fill="#ffffff" d="M4.6 5.6 5.6 4.6 8 7l2.4-2.4 1 1L9 8l2.4 2.4-1 1L8 9l-2.4 2.4-1-1L7 8Z"/>
+                            </svg>
+                          {% else %}
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 16 16" role="img" aria-hidden="true" style="display:block;">
+                              <circle cx="8" cy="8" r="8" fill="#1a7f37"/>
+                              <path fill="#ffffff" d="M11.2 5.2 6.7 9.7 4.8 7.8 3.9 8.7 6.7 11.5 12.1 6.1Z"/>
+                            </svg>
+                          {% endif %}
+                        </td>
+                        <td valign="top" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+                          <h1 class="fort-text" style="margin:0;font-size:16px;line-height:1.3;font-weight:600;color:#1f2328;">{{ heading }}</h1>
+                          {% if intro %}
+                            <p class="fort-muted" style="margin:4px 0 0;font-size:14px;line-height:1.5;color:#656d76;">{{ intro|trim('.') }}.</p>
+                          {% endif %}
+                          {% for note in notes %}
+                            <p class="fort-text" style="margin:4px 0 0;font-size:14px;line-height:1.5;color:#1f2328;">{{ note }}</p>
+                          {% endfor %}
+                          <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:16px;">
+                            <tr>
+                              <td bgcolor="#1f883d" style="background:#1f883d;border-radius:6px;padding:8px 16px;">
+                                <a href="{{ actionUrl }}" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;font-weight:600;line-height:20px;color:#ffffff;text-decoration:none;">{{ actionLabel }}</a>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                {% if stats or rows %}
+                  <tr>
+                    <td class="fort-rule" style="border-top:1px solid #d0d7de;padding:8px 28px 16px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                        {% for stat in stats %}
+                          <tr>
+                            <td class="fort-muted{% if not (loop.last and not rows) %} fort-line{% endif %}" style="padding:10px 16px 10px 0;{% if not (loop.last and not rows) %}border-bottom:1px solid #d0d7de;{% endif %}font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;line-height:1.4;color:#656d76;">{{ stat.label }}</td>
+                            <td class="fort-text{% if not (loop.last and not rows) %} fort-line{% endif %}" align="right" style="padding:10px 0;{% if not (loop.last and not rows) %}border-bottom:1px solid #d0d7de;{% endif %}font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;line-height:1.4;font-weight:600;color:#1f2328;">{{ stat.value }}</td>
+                          </tr>
+                        {% endfor %}
+                        {% for row in rows %}
+                          <tr>
+                            <th class="fort-muted{% if not loop.last %} fort-line{% endif %}" scope="row" align="left" valign="top" style="width:38%;padding:10px 16px 10px 0;{% if not loop.last %}border-bottom:1px solid #d0d7de;{% endif %}font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;line-height:1.4;font-weight:400;color:#656d76;">{{ row.label }}</th>
+                            <td class="fort-text{% if not loop.last %} fort-line{% endif %}" valign="top" style="padding:10px 0;{% if not loop.last %}border-bottom:1px solid #d0d7de;{% endif %}font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;line-height:1.4;color:#1f2328;word-break:break-word;">
+                              {% if row.code|default(false) %}<code style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;">{{ row.value }}</code>{% else %}{{ row.value }}{% endif %}
+                            </td>
+                          </tr>
+                        {% endfor %}
+                      </table>
+                    </td>
+                  </tr>
+                {% endif %}
+                {% if details %}
+                  <tr>
+                    <td class="fort-rule" style="border-top:1px solid #d0d7de;padding:16px 28px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+                      <details>
+                        <summary class="fort-muted" style="font-size:14px;line-height:1.4;color:#656d76;cursor:pointer;">{{ detailsLabel }}</summary>
+                        <pre class="fort-pre" style="margin:8px 0 0;padding:12px 16px;background:#f6f8fa;border:1px solid #d0d7de;border-radius:6px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45;color:#1f2328;white-space:pre-wrap;word-break:break-word;">{{ details }}</pre>
+                      </details>
+                    </td>
+                  </tr>
+                {% endif %}
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:28px 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.5;color:#656d76;">
+              <p class="fort-muted" style="margin:0;color:#656d76;">{{ footer }}</p>
               {% if dateNote %}
-                <p class="fort-muted" style="margin:0 0 6px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.45;color:#9ca3af;">{{ dateNote }}</p>
+                <p class="fort-muted" style="margin:8px 0 0;color:#656d76;">{{ dateNote }}</p>
               {% endif %}
-              <p class="fort-muted" style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.45;color:#9ca3af;">{{ footer }}</p>
             </td>
           </tr>
         </table>
