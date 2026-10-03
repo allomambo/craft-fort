@@ -219,6 +219,9 @@ php craft fort/events/send-daily-digest
 
 # Send the weekly digest (if enabled and maintainers configured)
 php craft fort/events/send-weekly-digest
+
+# Send the five sample layouts (devMode only; no alert rows, no digest stamp)
+php craft fort/events/send-samples
 ```
 
 Example crontab:

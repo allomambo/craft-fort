@@ -139,6 +139,85 @@ class NotificationService extends Component
     }
 
     /**
+     * Send every notification layout to the maintainers.
+     * Writes no alert rows, fires no webhook, and does not stamp digest last-sent.
+     *
+     * @return int layouts whose send succeeded
+     */
+    public function sendSamples(): int
+    {
+        if (!Craft::$app->getConfig()->getGeneral()->devMode) {
+            return 0;
+        }
+
+        $userId = $this->sampleUserId();
+        $alertsUrl = UrlHelper::cpUrl('fort/alerts');
+        $dashboardUrl = UrlHelper::cpUrl('fort/dashboard');
+        $sent = 0;
+
+        $events = [
+            ['login_threshold', [
+                'ip' => '203.0.113.79',
+                'blockedClientIp' => '203.0.113.79',
+                'failures' => 8,
+                'windowMinutes' => 15,
+                'requestPath' => '/login',
+                'userId' => $userId,
+                'authError' => 'Invalid credentials',
+            ]],
+            ['http_rate_limited', [
+                'ip' => '203.0.113.44',
+                'blockedClientIp' => '203.0.113.44',
+                'count' => 120,
+                'limit' => 60,
+                'requestPath' => '/api/entries',
+                'alertsInWindow' => 3,
+                'alertsBeforeBlock' => 5,
+                'alertWindowMinutes' => 15,
+                'blockDurationMinutes' => 60,
+                'automaticBlockPending' => false,
+            ]],
+            ['http_rate_limited', [
+                'ip' => '203.0.113.44',
+                'blockedClientIp' => '203.0.113.44',
+                'userId' => $userId,
+                'count' => 120,
+                'limit' => 60,
+                'requestPath' => '/api/graphql',
+                'alertsInWindow' => 3,
+                'alertsBeforeBlock' => 5,
+                'alertWindowMinutes' => 15,
+                'blockDurationMinutes' => 60,
+                'automaticBlockPending' => false,
+            ]],
+        ];
+
+        foreach ($events as [$type, $payload]) {
+            if ($this->dispatchToRecipients(fn() => $this->renderSignificantEvent($type, $payload, $alertsUrl))) {
+                $sent++;
+            }
+        }
+
+        if ($this->dispatchToRecipients(fn() => $this->renderDigest('daily', [
+            'login_failure' => 0,
+            'http_rate_limited' => 0,
+            'ip_blocked' => 0,
+        ], $dashboardUrl))) {
+            $sent++;
+        }
+
+        if ($this->dispatchToRecipients(fn() => $this->renderDigest('weekly', [
+            'login_failure' => 4,
+            'http_rate_limited' => 2,
+            'ip_blocked' => 1,
+        ], $dashboardUrl))) {
+            $sent++;
+        }
+
+        return $sent;
+    }
+
+    /**
      * @param array<string, mixed> $payload
      */
     public function notifySignificant(string $eventType, array $payload): void
@@ -803,6 +882,13 @@ class NotificationService extends Component
         } catch (\Throwable $e) {
             Craft::warning('Fort webhook failed: ' . $e->getMessage(), __METHOD__);
         }
+    }
+
+    private function sampleUserId(): int
+    {
+        $users = $this->resolveNotificationRecipients(Plugin::getInstance()->getSettings());
+
+        return $users === [] ? 1 : (int) $users[0]->id;
     }
 
     /**

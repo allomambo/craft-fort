@@ -43,4 +43,21 @@ class EventsController extends Controller
 
         return self::EXIT_CODE_NORMAL;
     }
+
+    /**
+     * Send the five sample notification emails (devMode only).
+     */
+    public function actionSendSamples(): int
+    {
+        $sent = Plugin::getInstance()->notifications->sendSamples();
+        if ($sent === 0) {
+            $this->stderr("No sample emails sent. devMode must be on, and a maintainer must exist.\n");
+
+            return self::EXIT_CODE_ERROR;
+        }
+
+        $this->stdout("Sent {$sent} sample notification(s).\n");
+
+        return $sent === 5 ? self::EXIT_CODE_NORMAL : self::EXIT_CODE_ERROR;
+    }
 }
