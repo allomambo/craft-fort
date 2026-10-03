@@ -10,6 +10,7 @@ use allomambo\fort\models\Settings;
 use allomambo\fort\Plugin;
 use Craft;
 use craft\elements\User;
+use craft\helpers\Html;
 use craft\helpers\UrlHelper;
 use craft\mail\Message;
 use craft\web\View;
@@ -633,8 +634,17 @@ class NotificationService extends Component
         $view['iconSrc'] = '%%FORT_ICON%%';
         $view['siteIconSrc'] = $siteIcon !== null ? '%%FORT_SITE_ICON%%' : null;
         $view['preheader'] = $site['label'] . ' — ' . (string) ($view['heading'] ?? '');
-        $view['footer'] = Craft::t('fort', 'You are receiving this because you are a Fort maintainer for {site}.', [
-            'site' => $site['label'],
+        $footer = Craft::t('fort', 'You are receiving this because you are an {site} maintainer.', [
+            'site' => $site['name'],
+        ]);
+        $view['footer'] = $site['url'] !== null ? $footer . "\n" . $site['url'] : $footer;
+        $view['footerHtml'] = Craft::t('fort', 'You are receiving this because you are an {site} maintainer.', [
+            'site' => $site['url'] !== null
+                ? Html::a($site['name'], $site['url'], [
+                    'class' => 'fort-footer-link',
+                    'style' => 'color:#000000;text-decoration:underline;',
+                ])
+                : Html::encode($site['name']),
         ]);
 
         return [
