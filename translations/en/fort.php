@@ -254,7 +254,7 @@ return [
     'Open dashboard' => 'Open dashboard',
     'View alerts' => 'View alerts',
     'Technical details' => 'Technical details',
-    'You are receiving this because you are a Fort maintainer for {site}.' => 'You are receiving this because you are a Fort maintainer for {site}.',
+    'You are receiving this because you are an {site} maintainer.' => 'You are receiving this because you are an {site} maintainer.',
     'Fort site icon' => 'Fort site icon',
     'Favicon found in the web root for notification emails.' => 'Favicon found in the web root for notification emails.',
 
