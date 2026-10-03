@@ -1,6 +1,7 @@
 /**
  * Mambo DS palette (MM-DS-2023 → Couleurs).
- * Defined only — not imported by Control Panel or email styles.
+ * Defined only — not imported by Control Panel styles.
+ * Notification mail inlines these hex values; clients will not load this file.
  * https://www.figma.com/design/n53H7LfhK5ImAs3V2egcQE/MM-DS-2023?node-id=1407-1605
  */
 :root {
@@ -18,6 +19,8 @@
     --fort-color-brown-500: #959062;
     --fort-color-brown-100: #D3D0AF;
     --fort-color-dark: #000000;
+    --fort-color-soft-peach: #F5EFED;
+    --fort-color-mercury: #E4E4E4;
     --fort-color-neutral: #F5EFED;
     --fort-color-light: #FFFFFF;
 }

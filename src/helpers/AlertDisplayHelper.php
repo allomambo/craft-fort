@@ -4,6 +4,7 @@ namespace allomambo\fort\helpers;
 
 use Craft;
 use craft\helpers\Json;
+use craft\helpers\UrlHelper;
 
 /**
  * CP labels and payload flattening for {@see \allomambo\fort\records\AlertRecord}.
@@ -48,7 +49,7 @@ class AlertDisplayHelper
 
     /**
      * @param array<string, mixed> $payload
-     * @return array<int, array{label: string, value: string}>
+     * @return array<int, array{key: string, label: string, value: string}>
      */
     public static function metaTableRows(array $payload): array
     {
@@ -89,6 +90,7 @@ class AlertDisplayHelper
                 continue;
             }
             $rows[] = [
+                'key' => $key,
                 'label' => self::metaKeyLabel($key),
                 'value' => self::formatMetaValue($key, $payload[$key]),
             ];
@@ -100,9 +102,47 @@ class AlertDisplayHelper
                 continue;
             }
             $rows[] = [
+                'key' => $key,
                 'label' => (string) $key,
                 'value' => self::formatMetaValue($key, $value),
             ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Human-readable rows for notification emails.
+     *
+     * The attempted login is omitted: it is often an email address. For `login_threshold`,
+     * a known Craft user ID is listed first instead.
+     *
+     * @param array<string, mixed> $payload
+     * @return array<int, array{key: string, label: string, value: string, url?: string}>
+     */
+    public static function emailSummaryRows(string $eventType, array $payload): array
+    {
+        unset($payload['attemptedLogin']);
+        $rows = self::metaTableRows($payload);
+
+        if ($eventType === 'login_threshold') {
+            $userIdRow = null;
+            $rest = [];
+            foreach ($rows as $row) {
+                if ($row['key'] === 'userId') {
+                    $userIdRow = $row;
+                    continue;
+                }
+                $rest[] = $row;
+            }
+            $rows = $userIdRow === null ? $rows : array_merge([$userIdRow], $rest);
+        }
+
+        foreach ($rows as $i => $row) {
+            if ($row['key'] !== 'userId' || !ctype_digit($row['value']) || (int) $row['value'] < 1) {
+                continue;
+            }
+            $rows[$i]['url'] = UrlHelper::cpUrl('users/' . $row['value']);
         }
 
         return $rows;

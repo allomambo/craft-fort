@@ -12,12 +12,16 @@ use Craft;
 use craft\elements\User;
 use craft\helpers\UrlHelper;
 use craft\mail\Message;
+use craft\web\View;
 use DateTimeImmutable;
 use DateTimeZone;
 use craft\base\Component;
 
 class NotificationService extends Component
 {
+    /** Resolved webroot favicon. Lives until Utilities → Caches clears it. */
+    public const SITE_ICON_CACHE_KEY = 'fort:site-icon';
+
     private const PSEUDO_CRON_CACHE_KEY = 'fort:digest:throttle';
 
     private const PSEUDO_CRON_CACHE_TTL_SECONDS = 45;
@@ -49,8 +53,9 @@ class NotificationService extends Component
             return;
         }
 
-        [$subject, $body] = $this->buildDailyDigestMail();
-        if ($this->queueDigestEmails($subject, $body)) {
+        $counts = $this->digestCounts('-24 hours');
+        $dashboardUrl = UrlHelper::cpUrl('fort/dashboard');
+        if ($this->dispatchToRecipients(fn() => $this->renderDigest('daily', $counts, $dashboardUrl))) {
             $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
             $plugin->runtimeSettings->setLastDailyDigestSentAtUtc($now);
         }
@@ -69,8 +74,9 @@ class NotificationService extends Component
             return;
         }
 
-        [$subject, $body] = $this->buildWeeklyDigestMail();
-        if ($this->queueDigestEmails($subject, $body)) {
+        $counts = $this->digestCounts('-7 days');
+        $dashboardUrl = UrlHelper::cpUrl('fort/dashboard');
+        if ($this->dispatchToRecipients(fn() => $this->renderDigest('weekly', $counts, $dashboardUrl))) {
             $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
             $plugin->runtimeSettings->setLastWeeklyDigestSentAtUtc($now);
         }
@@ -103,8 +109,9 @@ class NotificationService extends Component
             if ($settings->dailyDigestEmailEnabled) {
                 $last = $runtime->getLastDailyDigestSentAtUtc();
                 if (DigestScheduleHelper::isDailyDigestDue($last, $nowUtc, $tz, $settings->dailyDigestHour)) {
-                    [$subject, $body] = $this->buildDailyDigestMail();
-                    if ($this->queueDigestEmails($subject, $body)) {
+                    $counts = $this->digestCounts('-24 hours');
+                    $dashboardUrl = UrlHelper::cpUrl('fort/dashboard');
+                    if ($this->dispatchToRecipients(fn() => $this->renderDigest('daily', $counts, $dashboardUrl))) {
                         $runtime->setLastDailyDigestSentAtUtc($nowUtc);
                     }
                 }
@@ -119,8 +126,9 @@ class NotificationService extends Component
                     $settings->dailyDigestHour,
                     $settings->weeklyDigestDayOfWeek,
                 )) {
-                    [$subject, $body] = $this->buildWeeklyDigestMail();
-                    if ($this->queueDigestEmails($subject, $body)) {
+                    $counts = $this->digestCounts('-7 days');
+                    $dashboardUrl = UrlHelper::cpUrl('fort/dashboard');
+                    if ($this->dispatchToRecipients(fn() => $this->renderDigest('weekly', $counts, $dashboardUrl))) {
                         $runtime->setLastWeeklyDigestSentAtUtc($nowUtc);
                     }
                 }
@@ -128,6 +136,85 @@ class NotificationService extends Component
         } finally {
             $mutex->release(self::PSEUDO_CRON_MUTEX_NAME);
         }
+    }
+
+    /**
+     * Send every notification layout to the maintainers.
+     * Writes no alert rows, fires no webhook, and does not stamp digest last-sent.
+     *
+     * @return int layouts whose send succeeded
+     */
+    public function sendSamples(): int
+    {
+        if (!Craft::$app->getConfig()->getGeneral()->devMode) {
+            return 0;
+        }
+
+        $userId = $this->sampleUserId();
+        $alertsUrl = UrlHelper::cpUrl('fort/alerts');
+        $dashboardUrl = UrlHelper::cpUrl('fort/dashboard');
+        $sent = 0;
+
+        $events = [
+            ['login_threshold', [
+                'ip' => '203.0.113.79',
+                'blockedClientIp' => '203.0.113.79',
+                'failures' => 8,
+                'windowMinutes' => 15,
+                'requestPath' => '/login',
+                'userId' => $userId,
+                'authError' => 'Invalid credentials',
+            ]],
+            ['http_rate_limited', [
+                'ip' => '203.0.113.44',
+                'blockedClientIp' => '203.0.113.44',
+                'count' => 120,
+                'limit' => 60,
+                'requestPath' => '/api/entries',
+                'alertsInWindow' => 3,
+                'alertsBeforeBlock' => 5,
+                'alertWindowMinutes' => 15,
+                'blockDurationMinutes' => 60,
+                'automaticBlockPending' => false,
+            ]],
+            ['http_rate_limited', [
+                'ip' => '203.0.113.44',
+                'blockedClientIp' => '203.0.113.44',
+                'userId' => $userId,
+                'count' => 120,
+                'limit' => 60,
+                'requestPath' => '/api/graphql',
+                'alertsInWindow' => 3,
+                'alertsBeforeBlock' => 5,
+                'alertWindowMinutes' => 15,
+                'blockDurationMinutes' => 60,
+                'automaticBlockPending' => false,
+            ]],
+        ];
+
+        foreach ($events as [$type, $payload]) {
+            if ($this->dispatchToRecipients(fn() => $this->renderSignificantEvent($type, $payload, $alertsUrl))) {
+                $sent++;
+            }
+        }
+
+        if ($this->dispatchToRecipients(fn() => $this->renderDigest('daily', [
+            'login_failure' => 0,
+            'http_rate_limited' => 0,
+            'ip_blocked' => 0,
+        ], $dashboardUrl))) {
+            $sent++;
+        }
+
+        if ($this->dispatchToRecipients(fn() => $this->renderDigest('weekly', [
+            'login_failure' => 4,
+            'http_rate_limited' => 2,
+            'ip_blocked' => 1,
+        ], $dashboardUrl))) {
+            $sent++;
+        }
+
+        return $sent;
     }
 
     /**
@@ -187,9 +274,6 @@ class NotificationService extends Component
             return;
         }
 
-        $subject = Craft::t('fort', '[Fort] Significant event: {type}', ['type' => $eventType]);
-        $body = $this->significantEventTextBody($eventType, $payload);
-
         $cache = Craft::$app->getCache();
         $throttleCount = (int) $cache->get(self::SIGNIFICANT_EMAIL_THROTTLE_KEY);
         if ($throttleCount >= self::SIGNIFICANT_EMAIL_MAX_PER_HOUR) {
@@ -198,149 +282,451 @@ class NotificationService extends Component
         }
         $cache->set(self::SIGNIFICANT_EMAIL_THROTTLE_KEY, $throttleCount + 1, self::SIGNIFICANT_EMAIL_THROTTLE_TTL);
 
-        $this->queueEmails($subject, $body);
+        $alertsUrl = UrlHelper::cpUrl('fort/alerts');
+        $this->dispatchToRecipients(fn() => $this->renderSignificantEvent($eventType, $payload, $alertsUrl));
+    }
+
+    /**
+     * @param array{login_failure: int, http_rate_limited: int, ip_blocked: int} $counts
+     * @return array{subject: string, text: string, html: string}
+     */
+    private function renderDigest(string $which, array $counts, string $dashboardUrl): array
+    {
+        $daily = $which === 'daily';
+        $subject = Craft::t('fort', $daily ? '[Fort] {site}: Daily security digest' : '[Fort] {site}: Weekly security digest', [
+            'site' => $this->siteIdentity()['label'],
+        ]);
+        $heading = $daily
+            ? Craft::t('fort', 'Daily security digest')
+            : Craft::t('fort', 'Weekly security digest');
+        $intro = Craft::t('fort', $daily ? 'Summary for the last 24 hours.' : 'Summary for the last 7 days.');
+        $stats = [
+            ['label' => Craft::t('fort', 'Login failures'), 'value' => (string) $counts['login_failure']],
+            ['label' => Craft::t('fort', 'HTTP rate limits'), 'value' => (string) $counts['http_rate_limited']],
+            ['label' => Craft::t('fort', 'IPs blocked (events)'), 'value' => (string) $counts['ip_blocked']],
+        ];
+        $critical = ((int) $counts['login_failure'] + (int) $counts['http_rate_limited'] + (int) $counts['ip_blocked']) > 0;
+
+        return $this->composeMessage($subject, [
+            'heading' => $heading,
+            'intro' => $intro,
+            'critical' => $critical,
+            'rows' => [],
+            'stats' => $stats,
+            'notes' => [],
+            'detailsLabel' => null,
+            'details' => null,
+            'dateNote' => null,
+            'actionUrl' => $dashboardUrl,
+            'actionLabel' => Craft::t('fort', 'Open dashboard'),
+        ]);
     }
 
     /**
      * @param array<string, mixed> $payload
+     * @return array{subject: string, text: string, html: string}
      */
-    private function significantEventTextBody(string $eventType, array $payload): string
+    private function renderSignificantEvent(string $eventType, array $payload, string $alertsUrl): array
     {
-        $lines = [];
-        $lines[] = Craft::t('fort', 'Event: {type}', ['type' => $eventType]);
-        $lines[] = '';
-
-        $blockedIp = $payload['blockedClientIp'] ?? $payload['ip'] ?? null;
-        if ($blockedIp) {
-            $lines[] = Craft::t('fort', 'Blocked IP: {ip}', ['ip' => $blockedIp]);
-        }
+        $label = AlertDisplayHelper::alertTypeLabel($eventType);
+        $subject = Craft::t('fort', '[Fort] {site}: {event}', [
+            'site' => $this->siteIdentity()['label'],
+            'event' => $label,
+        ]);
+        $displayPayload = $payload;
+        $notes = [];
+        $intro = $this->eventSummary($eventType, $payload);
 
         if (!empty($payload['isPermanent'])) {
-            $lines[] = Craft::t('fort', 'Permanent block (no automatic expiry).');
-        } elseif (!empty($payload['blockedUntil'])) {
-            $lines[] = Craft::t('fort', 'Block until: {time}', ['time' => (string) $payload['blockedUntil']]);
+            $notes[] = Craft::t('fort', 'Permanent block (no automatic expiry).');
+            unset($displayPayload['isPermanent']);
+        }
+        if (!empty($payload['blockApplyFailed'])) {
+            $notes[] = Craft::t('fort', 'Note: automatic IP block could not be applied; check logs.');
+            unset($displayPayload['blockApplyFailed']);
         }
 
-        if (!empty($payload['blockReason'])) {
-            $lines[] = Craft::t('fort', 'Block reason: {reason}', ['reason' => AlertDisplayHelper::blockReasonValue((string) $payload['blockReason'])]);
-        }
+        $emailPayload = $payload;
+        unset($emailPayload['attemptedLogin']);
+        $json = json_encode($emailPayload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
-        if ($eventType === 'login_threshold' && !empty($payload['attemptedLogin'])) {
-            $lines[] = Craft::t('fort', 'Attempted login: {login}', ['login' => (string) $payload['attemptedLogin']]);
-        }
+        $rows = AlertDisplayHelper::emailSummaryRows($eventType, $displayPayload);
+        array_unshift($rows, [
+            'key' => 'type',
+            'label' => Craft::t('fort', 'Type'),
+            'value' => $eventType,
+            'code' => true,
+        ]);
 
-        if (isset($payload['failures'], $payload['windowMinutes'])) {
-            $lines[] = Craft::t('fort', 'Failed attempts (window): {n} in {m} minutes', [
-                'n' => $payload['failures'],
-                'm' => $payload['windowMinutes'],
+        return $this->composeMessage($subject, [
+            'heading' => $label,
+            'intro' => $intro,
+            'critical' => true,
+            'rows' => $rows,
+            'stats' => [],
+            'notes' => $notes,
+            'detailsLabel' => Craft::t('fort', 'Technical details'),
+            'details' => is_string($json) ? $json : '',
+            'dateNote' => Craft::t('fort', 'Dates use the system timezone ({tz}).', ['tz' => Craft::$app->getTimeZone()]),
+            'actionUrl' => $alertsUrl,
+            'actionLabel' => Craft::t('fort', 'View alerts'),
+        ]);
+    }
+
+    /**
+     * Craft system name plus the primary site, so a maintainer with several Fort installs can tell them apart.
+     *
+     * @return array{name: string, host: ?string, url: ?string, label: string}
+     */
+    private function siteIdentity(): array
+    {
+        $name = (string) Craft::$app->getSystemName();
+        $url = (string) Craft::$app->getSites()->getPrimarySite()->getBaseUrl();
+        $host = parse_url($url, PHP_URL_HOST);
+        $host = is_string($host) && $host !== '' ? $host : null;
+        $label = $host !== null && strcasecmp($host, $name) !== 0 ? $name . ' · ' . $host : $name;
+
+        return [
+            'name' => $name,
+            'host' => $host,
+            'url' => $url !== '' ? $url : null,
+            'label' => $label,
+        ];
+    }
+
+    /**
+     * One sentence above the button. The full field table comes after it.
+     *
+     * @param array<string, mixed> $payload
+     */
+    private function eventSummary(string $eventType, array $payload): ?string
+    {
+        if ($eventType === 'login_threshold' && isset($payload['failures'], $payload['windowMinutes'])) {
+            return Craft::t('fort', '{failures} failed login attempts in {window} minutes.', [
+                'failures' => $payload['failures'],
+                'window' => $payload['windowMinutes'],
             ]);
         }
 
-        if (isset($payload['count'], $payload['limit'])) {
-            $lines[] = Craft::t('fort', 'Request rate: {count} (limit {limit} per minute)', [
+        if ($eventType === 'http_rate_limited' && isset($payload['count'], $payload['limit'])) {
+            return Craft::t('fort', '{count} requests in one minute, past the limit of {limit}.', [
                 'count' => $payload['count'],
                 'limit' => $payload['limit'],
             ]);
         }
 
-        if ($eventType === 'http_rate_limited') {
-            if (isset($payload['alertsInWindow'], $payload['alertsBeforeBlock'], $payload['alertWindowMinutes'])) {
-                $lines[] = Craft::t('fort', 'Rate-limit alerts in rolling window: {current} of {needed} within {y} minutes', [
-                    'current' => $payload['alertsInWindow'],
-                    'needed' => $payload['alertsBeforeBlock'],
-                    'y' => $payload['alertWindowMinutes'],
-                ]);
+        return null;
+    }
+
+    /**
+     * Square mark for the site row. Craft's uploaded CP icon wins; otherwise a favicon in the webroot.
+     *
+     * @return array{path: string, mime: string, name: string, temp: bool}|null
+     */
+    private function siteIconFile(): ?array
+    {
+        return $this->rebrandIconFile() ?? $this->webrootFaviconFile();
+    }
+
+    /**
+     * @return array{path: string, mime: string, name: string, temp: bool}|null
+     */
+    private function rebrandIconFile(): ?array
+    {
+        $dir = Craft::$app->getPath()->getRebrandPath(false) . DIRECTORY_SEPARATOR . 'icon';
+        if (!is_dir($dir)) {
+            return null;
+        }
+
+        $mime = [
+            'png' => 'image/png',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+        ];
+        foreach (scandir($dir) ?: [] as $name) {
+            $path = $dir . DIRECTORY_SEPARATOR . $name;
+            $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+            if (!is_file($path) || !isset($mime[$ext])) {
+                continue;
             }
-            if (!empty($payload['blockDurationMinutes'])) {
-                $lines[] = Craft::t('fort', 'Automatic block duration when applied (minutes): {z}', [
-                    'z' => $payload['blockDurationMinutes'],
-                ]);
-            }
-            if (array_key_exists('automaticBlockPending', $payload)) {
-                $lines[] = Craft::t('fort', 'Automatic IP block applied this event: {yes}', [
-                    'yes' => !empty($payload['automaticBlockPending']) ? Craft::t('app', 'Yes') : Craft::t('app', 'No'),
-                ]);
+
+            return [
+                'path' => $path,
+                'mime' => $mime[$ext],
+                'name' => 'site-icon.' . ($ext === 'jpeg' ? 'jpg' : $ext),
+                'temp' => false,
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * Known filenames at the web root, then any favicon file under it. The path is cached until caches are cleared.
+     *
+     * @return array{path: string, mime: string, name: string, temp: bool}|null
+     */
+    private function webrootFaviconFile(): ?array
+    {
+        $cache = Craft::$app->getCache();
+        $hit = $cache->get(self::SITE_ICON_CACHE_KEY);
+        if ($hit === '') {
+            return null;
+        }
+        if (is_string($hit)) {
+            return is_file($hit) ? $this->iconFromPath($hit) : null;
+        }
+
+        $path = $this->findWebrootFavicon();
+        $icon = $path !== null ? $this->iconFromPath($path) : null;
+        $cache->set(self::SITE_ICON_CACHE_KEY, $icon !== null ? $path : '', 0);
+
+        return $icon;
+    }
+
+    private function findWebrootFavicon(): ?string
+    {
+        $root = Craft::getAlias('@webroot');
+        if (!is_string($root) || !is_dir($root)) {
+            return null;
+        }
+
+        foreach (['favicon.ico', 'favicon.png', 'apple-touch-icon.png', 'apple-touch-icon-precomposed.png'] as $name) {
+            $path = $root . DIRECTORY_SEPARATOR . $name;
+            if (is_file($path) && filesize($path) <= 262144) {
+                return $path;
             }
         }
 
-        if (!empty($payload['requestPath'])) {
-            $lines[] = Craft::t('fort', 'Path: {path}', ['path' => (string) $payload['requestPath']]);
+        $skip = ['cpresources', 'node_modules', '.git'];
+        $rank = ['png' => 0, 'webp' => 1, 'jpg' => 2, 'jpeg' => 2, 'gif' => 3, 'ico' => 4];
+        $best = null;
+        $bestScore = PHP_INT_MAX;
+        $queue = [[$root, 0]];
+        while ($queue !== []) {
+            [$dir, $depth] = array_shift($queue);
+            foreach (scandir($dir) ?: [] as $name) {
+                if ($name === '.' || $name === '..' || in_array($name, $skip, true)) {
+                    continue;
+                }
+                $path = $dir . DIRECTORY_SEPARATOR . $name;
+                if (is_dir($path)) {
+                    if ($depth < 3) {
+                        $queue[] = [$path, $depth + 1];
+                    }
+                    continue;
+                }
+                if (!is_file($path) || stripos($name, 'favicon') === false || filesize($path) > 262144) {
+                    continue;
+                }
+                $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+                if (!isset($rank[$ext])) {
+                    continue;
+                }
+                $score = $depth * 10 + $rank[$ext];
+                if ($score < $bestScore) {
+                    $best = $path;
+                    $bestScore = $score;
+                }
+            }
         }
 
-        if (!empty($payload['blockApplyFailed'])) {
-            $lines[] = Craft::t('fort', 'Note: automatic IP block could not be applied; check logs.');
+        return $best;
+    }
+
+    /**
+     * @return array{path: string, mime: string, name: string, temp: bool}|null
+     */
+    private function iconFromPath(string $path): ?array
+    {
+        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $mime = [
+            'png' => 'image/png',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+        ];
+        if (isset($mime[$ext])) {
+            return [
+                'path' => $path,
+                'mime' => $mime[$ext],
+                'name' => 'site-icon.' . ($ext === 'jpeg' ? 'jpg' : $ext),
+                'temp' => false,
+            ];
+        }
+        if ($ext !== 'ico') {
+            return null;
         }
 
+        $bytes = file_get_contents($path);
+        if (!is_string($bytes)) {
+            return null;
+        }
+        $image = $this->asPng($bytes, 'image/x-icon');
+
+        return $image === null ? null : $this->writeIconTemp($image['bytes'], $image['mime'], $image['ext']);
+    }
+
+    /**
+     * @return array{bytes: string, mime: string, ext: string}|null
+     */
+    private function asPng(string $bytes, string $mime): ?array
+    {
+        if ($mime === 'image/png') {
+            return ['bytes' => $bytes, 'mime' => 'image/png', 'ext' => 'png'];
+        }
+        if (!class_exists(\Imagick::class)) {
+            return match ($mime) {
+                'image/jpeg' => ['bytes' => $bytes, 'mime' => $mime, 'ext' => 'jpg'],
+                'image/gif' => ['bytes' => $bytes, 'mime' => $mime, 'ext' => 'gif'],
+                'image/webp' => ['bytes' => $bytes, 'mime' => $mime, 'ext' => 'webp'],
+                default => null,
+            };
+        }
+
+        try {
+            $image = new \Imagick();
+            $image->readImageBlob($bytes);
+            $image->setIteratorIndex(0);
+            $image->setImageFormat('png');
+
+            return ['bytes' => $image->getImageBlob(), 'mime' => 'image/png', 'ext' => 'png'];
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * @return array{path: string, mime: string, name: string, temp: bool}|null
+     */
+    private function writeIconTemp(string $bytes, string $mime, string $ext): ?array
+    {
+        $path = Craft::$app->getPath()->getTempPath() . DIRECTORY_SEPARATOR . 'fort-site-icon-' . bin2hex(random_bytes(4)) . '.' . $ext;
+        if (file_put_contents($path, $bytes) === false) {
+            return null;
+        }
+
+        return [
+            'path' => $path,
+            'mime' => $mime,
+            'name' => 'site-icon.' . $ext,
+            'temp' => true,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $view
+     * @return array{subject: string, text: string, html: string, siteIcon: ?array}
+     */
+    private function composeMessage(string $subject, array $view): array
+    {
+        $site = $this->siteIdentity();
+        $siteIcon = $this->siteIconFile();
+
+        $view['language'] = Craft::$app->language;
+        $view['siteName'] = $site['name'];
+        $view['siteHost'] = $site['host'];
+        $view['siteUrl'] = $site['url'];
+        $view['iconSrc'] = '%%FORT_ICON%%';
+        $view['siteIconSrc'] = $siteIcon !== null ? '%%FORT_SITE_ICON%%' : null;
+        $view['preheader'] = $site['label'] . ' — ' . (string) ($view['heading'] ?? '');
+        $view['footer'] = Craft::t('fort', 'You are receiving this because you are a Fort maintainer for {site}.', [
+            'site' => $site['label'],
+        ]);
+
+        return [
+            'subject' => $subject,
+            'text' => $this->plainTextMessage($subject, $view),
+            'html' => $this->renderHtmlMessage($view),
+            'siteIcon' => $siteIcon,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $view
+     */
+    private function plainTextMessage(string $subject, array $view): string
+    {
+        $lines = [$subject, '', 'Fort', '', (string) $view['siteName']];
+        if (!empty($view['siteUrl'])) {
+            $lines[] = (string) $view['siteUrl'];
+        }
         $lines[] = '';
-        $lines[] = Craft::t('fort', 'Full details (JSON):');
-        $lines[] = json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $lines[] = (string) ($view['heading'] ?? '');
+        if (!empty($view['intro'])) {
+            $lines[] = (string) $view['intro'];
+        }
+        foreach ($view['notes'] ?? [] as $note) {
+            $lines[] = $note;
+        }
+        $lines[] = '';
+        $lines[] = $view['actionLabel'] . ': ' . $view['actionUrl'];
+        $lines[] = '';
+        foreach ($view['stats'] ?? [] as $stat) {
+            $lines[] = $stat['label'] . ': ' . $stat['value'];
+        }
+        foreach ($view['rows'] ?? [] as $row) {
+            $value = (string) $row['value'];
+            if (!empty($row['code'])) {
+                $value = '`' . $value . '`';
+            }
+            if (!empty($row['url'])) {
+                $value .= ' (' . $row['url'] . ')';
+            }
+            $lines[] = $row['label'] . ': ' . $value;
+        }
+        if (!empty($view['stats']) || !empty($view['rows'])) {
+            $lines[] = '';
+        }
+        if (!empty($view['details'])) {
+            $lines[] = (string) $view['detailsLabel'];
+            $lines[] = (string) $view['details'];
+            $lines[] = '';
+        }
+        if (!empty($view['dateNote'])) {
+            $lines[] = (string) $view['dateNote'];
+            $lines[] = '';
+        }
+        $lines[] = (string) $view['footer'];
 
         return implode("\n", $lines);
     }
 
     /**
-     * @return array{0: string, 1: string}
+     * @param array<string, mixed> $variables
      */
-    private function buildDailyDigestMail(): array
+    private function renderHtmlMessage(array $variables): string
     {
-        $plugin = Plugin::getInstance();
-        $since = (new \DateTimeImmutable())->modify('-24 hours');
-        $counts = $plugin->securityEvents->countsSince($since);
-        $dashboardUrl = UrlHelper::cpUrl('fort/dashboard');
-
-        $subject = Craft::t('fort', '[Fort] Daily security digest');
-        $body = Craft::t('fort', 'Summary (last 24 hours):' . "\n\n" .
-            'Login failures: {lf}' . "\n" .
-            'HTTP rate limits: {hr}' . "\n" .
-            'IPs blocked (events): {ib}' . "\n\n" .
-            'Dashboard: {url}', [
-            'lf' => $counts['login_failure'],
-            'hr' => $counts['http_rate_limited'],
-            'ib' => $counts['ip_blocked'],
-            'url' => $dashboardUrl,
-        ]);
-
-        return [$subject, $body];
+        $view = Craft::$app->getView();
+        $mode = $view->getTemplateMode();
+        $view->setTemplateMode(View::TEMPLATE_MODE_CP);
+        try {
+            return $view->renderTemplate('fort/_emails/notification', $variables);
+        } finally {
+            $view->setTemplateMode($mode);
+        }
     }
 
     /**
-     * @return array{0: string, 1: string}
+     * @return array{login_failure: int, http_rate_limited: int, ip_blocked: int}
      */
-    private function buildWeeklyDigestMail(): array
+    private function digestCounts(string $modify): array
     {
-        $plugin = Plugin::getInstance();
-        $since = (new \DateTimeImmutable())->modify('-7 days');
-        $counts = $plugin->securityEvents->countsSince($since);
-        $dashboardUrl = UrlHelper::cpUrl('fort/dashboard');
+        $since = (new DateTimeImmutable())->modify($modify);
 
-        $subject = Craft::t('fort', '[Fort] Weekly security digest');
-        $body = Craft::t('fort', 'Summary (last 7 days):' . "\n\n" .
-            'Login failures: {lf}' . "\n" .
-            'HTTP rate limits: {hr}' . "\n" .
-            'IPs blocked (events): {ib}' . "\n\n" .
-            'Dashboard: {url}', [
-            'lf' => $counts['login_failure'],
-            'hr' => $counts['http_rate_limited'],
-            'ib' => $counts['ip_blocked'],
-            'url' => $dashboardUrl,
-        ]);
-
-        return [$subject, $body];
+        return Plugin::getInstance()->securityEvents->countsSince($since);
     }
 
     /**
-     * Thin wrapper: digest sends need a boolean return to drive the runtime lastDigestSentAt write.
+     * Resolve recipients and send one {@see Message} per user, rendered in that user's
+     * Control Panel language. Returns true only when every send succeeded.
+     *
+     * @param callable(): array{subject: string, text: string, html: string, siteIcon?: ?array} $render
      */
-    private function queueDigestEmails(string $subject, string $textBody): bool
-    {
-        return $this->dispatchToRecipients($subject, $textBody);
-    }
-
-    /**
-     * Resolve recipients and send one {@see Message} per user. Returns true only when every send succeeded.
-     * Shared by significant-event emails and digest emails so a fix to one code path cannot drift from the other.
-     */
-    private function dispatchToRecipients(string $subject, string $textBody): bool
+    private function dispatchToRecipients(callable $render): bool
     {
         $plugin = Plugin::getInstance();
         /** @var Settings $settings */
@@ -354,13 +740,37 @@ class NotificationService extends Component
             return false;
         }
 
+        $previousLanguage = Craft::$app->language;
         $allOk = true;
         foreach ($users as $user) {
             try {
+                Craft::$app->language = $this->recipientLanguage($user);
+                $mail = $render();
                 $message = new Message();
                 $message->setTo($user->email);
-                $message->setSubject($subject);
-                $message->setTextBody($textBody);
+                $message->language = Craft::$app->language;
+                $message->setSubject($mail['subject']);
+                $message->setTextBody($mail['text']);
+                $iconPath = dirname(__DIR__) . '/resources/fort-icon.png';
+                if (is_file($iconPath)) {
+                    $cid = $message->embed($iconPath, [
+                        'fileName' => 'fort-icon.png',
+                        'contentType' => 'image/png',
+                    ]);
+                    $mail['html'] = str_replace('%%FORT_ICON%%', $cid, $mail['html']);
+                }
+                $siteIcon = $mail['siteIcon'] ?? null;
+                if (is_array($siteIcon) && is_file($siteIcon['path'])) {
+                    $cid = $message->embed($siteIcon['path'], [
+                        'fileName' => $siteIcon['name'],
+                        'contentType' => $siteIcon['mime'],
+                    ]);
+                    $mail['html'] = str_replace('%%FORT_SITE_ICON%%', $cid, $mail['html']);
+                    if (!empty($siteIcon['temp'])) {
+                        @unlink($siteIcon['path']);
+                    }
+                }
+                $message->setHtmlBody($mail['html']);
                 $sent = Craft::$app->getMailer()->send($message);
                 if (!$sent) {
                     $allOk = false;
@@ -369,10 +779,31 @@ class NotificationService extends Component
             } catch (\Throwable $e) {
                 $allOk = false;
                 Craft::warning('Fort: could not send email: ' . $e->getMessage(), __METHOD__);
+            } finally {
+                Craft::$app->language = $previousLanguage;
             }
         }
 
         return $allOk;
+    }
+
+    /**
+     * CP language for this recipient: their preference, then defaultCpLanguage, then the primary site.
+     * Independent of the request that triggered the send.
+     */
+    private function recipientLanguage(User $user): string
+    {
+        $preferred = $user->getPreferredLanguage();
+        if (is_string($preferred) && $preferred !== '') {
+            return $preferred;
+        }
+
+        $defaultCp = Craft::$app->getConfig()->getGeneral()->defaultCpLanguage;
+        if (is_string($defaultCp) && $defaultCp !== '') {
+            return $defaultCp;
+        }
+
+        return Craft::$app->getSites()->getPrimarySite()->language;
     }
 
     /**
@@ -453,12 +884,11 @@ class NotificationService extends Component
         }
     }
 
-    /**
-     * Thin wrapper: significant-event notifications do not need the aggregated boolean result.
-     */
-    private function queueEmails(string $subject, string $textBody): void
+    private function sampleUserId(): int
     {
-        $this->dispatchToRecipients($subject, $textBody);
+        $users = $this->resolveNotificationRecipients(Plugin::getInstance()->getSettings());
+
+        return $users === [] ? 1 : (int) $users[0]->id;
     }
 
     /**
