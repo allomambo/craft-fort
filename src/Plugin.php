@@ -398,10 +398,7 @@ class Plugin extends BasePlugin
         $item['label'] = Craft::t('fort', 'Fort');
         // Parent URL must be a prefix of every subnav URL (Craft CP). Use `fort` so `fort/dashboard`, `fort/settings`, … work.
         $item['url'] = 'fort';
-        // Craft 5 accepts FA icon names; Craft 4 expects the SVG path from parent::getCpNavItem().
-        if (self::isCraft5()) {
-            $item['icon'] = 'shield';
-        }
+        // Nav icon is src/icon-mask.svg, set by parent::getCpNavItem() on Craft 4 and 5.
         $item['subnav'] = [
             'dashboard' => [
                 'label' => Craft::t('fort', 'Dashboard'),
