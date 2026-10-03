@@ -594,6 +594,9 @@ class NotificationService extends Component
             if (!empty($row['code'])) {
                 $value = '`' . $value . '`';
             }
+            if (!empty($row['url'])) {
+                $value .= ' (' . $row['url'] . ')';
+            }
             $lines[] = $row['label'] . ': ' . $value;
         }
         if (!empty($view['stats']) || !empty($view['rows'])) {
