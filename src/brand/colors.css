@@ -1,0 +1,23 @@
+/**
+ * Mambo DS palette (MM-DS-2023 → Couleurs).
+ * Defined only — not imported by Control Panel or email styles.
+ * https://www.figma.com/design/n53H7LfhK5ImAs3V2egcQE/MM-DS-2023?node-id=1407-1605
+ */
+:root {
+    --fort-color-yellow-500: #FFE91A;
+    --fort-color-yellow-100: #FFF37F;
+    --fort-color-pink-500: #FF9DDE;
+    --fort-color-pink-100: #FFD4F1;
+    --fort-brand-pink-500: #FF9DDE;
+    --fort-color-orange-500: #FF7A45;
+    --fort-color-orange-100: #FFC7B1;
+    --fort-color-blue-500: #1D8EFF;
+    --fort-color-blue-100: #8BBDF8;
+    --fort-color-green-500: #509467;
+    --fort-color-green-100: #94C5A4;
+    --fort-color-brown-500: #959062;
+    --fort-color-brown-100: #D3D0AF;
+    --fort-color-dark: #000000;
+    --fort-color-neutral: #F5EFED;
+    --fort-color-light: #FFFFFF;
+}
