@@ -225,8 +225,7 @@ class Plugin extends BasePlugin
     }
 
     /**
-     * Record login success/failure for all Craft login flows (CP, site, passkey path via controller).
-     * Previously only the custom userextended API wrapper called {@see SecurityEventService::recordLoginAttempt()}.
+     * Record login failures for all Craft login flows (CP, site, passkey path via controller).
      */
     private function registerLoginSecurityListeners(): void
     {
@@ -272,8 +271,7 @@ class Plugin extends BasePlugin
 
                 $rawIp = FortClientIp::getEffective($request) ?: '0.0.0.0';
 
-                $plugin->securityEvents->recordLoginAttempt(
-                    false,
+                $plugin->securityEvents->recordLoginFailure(
                     $rawIp,
                     $request->getPathInfo() ?: null,
                     $meta
