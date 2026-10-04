@@ -40,7 +40,7 @@ final class EventDisplayHelper
         }
 
         $path = $row['requestPath'] ?? null;
-        if ($path !== null && $path !== '' && (!isset($meta['requestPath']) || $meta['requestPath'] === '' || $meta['requestPath'] === null)) {
+        if ($path !== null && $path !== '' && (!isset($meta['requestPath']) || $meta['requestPath'] === '')) {
             $meta['requestPath'] = $path;
         }
 
@@ -68,8 +68,8 @@ final class EventDisplayHelper
                 continue;
             }
             $rows[] = [
-                'label' => self::metaKeyLabel($key),
-                'value' => self::formatValue($key, $meta[$key]),
+                'label' => MetaDisplayHelper::keyLabel($key),
+                'value' => MetaDisplayHelper::formatValue($key, $meta[$key]),
             ];
         }
 
@@ -79,61 +79,10 @@ final class EventDisplayHelper
             }
             $rows[] = [
                 'label' => (string) $key,
-                'value' => self::formatValue($key, $value),
+                'value' => MetaDisplayHelper::formatValue($key, $value),
             ];
         }
 
         return $rows;
-    }
-
-    private static function metaKeyLabel(string $key): string
-    {
-        return match ($key) {
-            'reason' => Craft::t('fort', 'Meta: Block reason'),
-            'failures' => Craft::t('fort', 'Meta: Failed attempts'),
-            'windowMinutes' => Craft::t('fort', 'Meta: Window'),
-            'attemptedLogin' => Craft::t('fort', 'Meta: Attempted login'),
-            'authError' => Craft::t('fort', 'Meta: Auth error'),
-            'userId' => Craft::t('fort', 'Meta: User ID'),
-            'count' => Craft::t('fort', 'Meta: Request count'),
-            'limit' => Craft::t('fort', 'Meta: Per-minute limit'),
-            'alertsInWindow' => Craft::t('fort', 'Meta: Alerts in window'),
-            'alertsBeforeBlock' => Craft::t('fort', 'Meta: Alerts required for block'),
-            'alertWindowMinutes' => Craft::t('fort', 'Meta: Alert window'),
-            'blockDurationMinutes' => Craft::t('fort', 'Meta: Block duration when applied'),
-            'automaticBlockPending' => Craft::t('fort', 'Meta: Automatic block this event'),
-            'blockedUntil' => Craft::t('fort', 'Meta: Block until'),
-            'requestPath' => Craft::t('fort', 'Meta: Path'),
-            default => $key,
-        };
-    }
-
-    private static function formatValue(string $key, mixed $value): string
-    {
-        if ($value === null) {
-            return '—';
-        }
-
-        if ($key === 'reason') {
-            return AlertDisplayHelper::blockReasonValue(is_scalar($value) ? (string) $value : '');
-        }
-
-        if ($key === 'authError') {
-            return AlertDisplayHelper::authErrorValue(is_scalar($value) ? (string) $value : null);
-        }
-
-        if (str_ends_with($key, 'Minutes') && is_numeric($value)) {
-            return $value . ' min';
-        }
-
-        if (is_bool($value)) {
-            return $value ? Craft::t('fort', 'Yes') : Craft::t('fort', 'No');
-        }
-
-        if (is_array($value)) {
-            return Json::encode($value, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-        }
-
-        return is_scalar($value) ? (string) $value : '';
     }
 }

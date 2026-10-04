@@ -1,0 +1,13 @@
+---
+description: Fort plugin conventions
+alwaysApply: true
+---
+
+# craft-fort
+
+- Follow [AGENTS.md](AGENTS.md); for running a local checkout in DDEV see [docs/local-development.md](docs/local-development.md).
+- Craft 4 and 5, PHP 8.2+. `Plugin.php` wires; feature logic lives in `src/services/`. Gate Craft-5-only behavior with `Plugin::isCraft5()` and never call Craft-5-only Twig functions.
+- Controllers: `requirePermission('accessPlugin-fort')` in `beforeAction()`; mutations also require CP request, POST, JSON, and admin.
+- Every user-facing string uses the `fort` category and gets entries in both `en` and `fr`. Log messages stay untranslated.
+- Schema change = `Install.php` + new migration + `Plugin::$schemaVersion` bump.
+- Run `composer check-cs` and `composer phpstan` before pushing.

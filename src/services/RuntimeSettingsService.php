@@ -6,16 +6,29 @@ use allomambo\fort\models\Settings;
 use allomambo\fort\Plugin;
 use allomambo\fort\records\FortRuntimeRecord;
 use Craft;
+use craft\base\Component;
 use craft\helpers\StringHelper;
 use DateTimeImmutable;
 use DateTimeInterface;
-use craft\base\Component;
 
 /**
  * DB-backed runtime options (editable in CP when project config locks plugin settings).
  */
 class RuntimeSettingsService extends Component
 {
+    /**
+     * Runtime override column => the {@see Settings} attribute holding its default and limits.
+     */
+    private const LIMIT_ATTRIBUTES = [
+        'defaultBlockDurationMinutes' => 'defaultBlockDurationMinutes',
+        'permanentBlockAfterAutomaticBlocks' => 'permanentBlockAfterAutomaticBlocks',
+        'failedLoginThreshold' => 'failedLoginThresholdPerIp',
+        'failedLoginWindowMinutes' => 'failedLoginWindowMinutes',
+        'maxRequestsPerIpPerMinute' => 'maxRequestsPerIpPerMinute',
+        'httpRateLimitAlertsBeforeBlock' => 'httpRateLimitAlertsBeforeBlock',
+        'httpRateLimitAlertWindowMinutes' => 'httpRateLimitAlertWindowMinutes',
+    ];
+
     private ?FortRuntimeRecord $_row = null;
 
     public function getRow(): FortRuntimeRecord
@@ -56,76 +69,56 @@ class RuntimeSettingsService extends Component
 
     public function getDefaultBlockDurationMinutes(): int
     {
-        $rowVal = $this->getRow()->defaultBlockDurationMinutes;
-        if ($rowVal !== null && (int) $rowVal > 0) {
-            return (int) $rowVal;
-        }
-
-        $plugin = Plugin::getInstance();
-
-        return max(1, (int) $plugin->getSettings()->defaultBlockDurationMinutes);
+        return $this->effectiveLimit('defaultBlockDurationMinutes', Plugin::getInstance()->getSettings());
     }
 
     public function getPermanentBlockAfterAutomaticBlocks(Settings $settings): int
     {
-        $o = $this->getRow()->permanentBlockAfterAutomaticBlocks;
-
-        if ($o !== null && (int) $o > 0) {
-            return (int) $o;
-        }
-
-        return max(1, (int) $settings->permanentBlockAfterAutomaticBlocks);
+        return $this->effectiveLimit('permanentBlockAfterAutomaticBlocks', $settings);
     }
 
     public function getFailedLoginThreshold(Settings $settings): int
     {
-        $o = $this->getRow()->failedLoginThreshold;
-
-        if ($o !== null && (int) $o > 0) {
-            return (int) $o;
-        }
-
-        return max(1, (int) $settings->failedLoginThresholdPerIp);
+        return $this->effectiveLimit('failedLoginThreshold', $settings);
     }
 
     public function getFailedLoginWindowMinutes(Settings $settings): int
     {
-        $o = $this->getRow()->failedLoginWindowMinutes;
-
-        if ($o !== null && (int) $o > 0) {
-            return (int) $o;
-        }
-
-        return max(1, (int) $settings->failedLoginWindowMinutes);
+        return $this->effectiveLimit('failedLoginWindowMinutes', $settings);
     }
 
     public function getMaxRequestsPerIpPerMinute(Settings $settings): int
     {
-        $o = $this->getRow()->maxRequestsPerIpPerMinute;
-
-        return $o !== null && $o > 0 ? $o : $settings->maxRequestsPerIpPerMinute;
+        return $this->effectiveLimit('maxRequestsPerIpPerMinute', $settings);
     }
 
     public function getHttpRateLimitAlertsBeforeBlock(Settings $settings): int
     {
-        $o = $this->getRow()->httpRateLimitAlertsBeforeBlock;
-
-        if ($o !== null && (int) $o > 0) {
-            return (int) $o;
-        }
-
-        return max(1, (int) $settings->httpRateLimitAlertsBeforeBlock);
+        return $this->effectiveLimit('httpRateLimitAlertsBeforeBlock', $settings);
     }
 
     public function getHttpRateLimitAlertWindowMinutes(Settings $settings): int
     {
-        $o = $this->getRow()->httpRateLimitAlertWindowMinutes;
+        return $this->effectiveLimit('httpRateLimitAlertWindowMinutes', $settings);
+    }
 
-        if ($o !== null && (int) $o > 0) {
-            return (int) $o;
+    /**
+     * The runtime override when positive, otherwise the settings value clamped into its allowed range
+     * (`config/fort.php` bypasses {@see Settings::rules()}, so a 0 there must never reach the callers).
+     *
+     * @param string $column Runtime column name, a key of {@see self::LIMIT_ATTRIBUTES}.
+     */
+    private function effectiveLimit(string $column, Settings $settings): int
+    {
+        $override = (int) $this->getRow()->$column;
+        if ($override > 0) {
+            return $override;
         }
 
-        return max(1, (int) $settings->httpRateLimitAlertWindowMinutes);
+        $attribute = self::LIMIT_ATTRIBUTES[$column];
+        $limits = Settings::LIMITS[$attribute];
+
+        return min($limits['max'], max($limits['min'], (int) $settings->$attribute));
     }
 
     public function getLastDailyDigestSentAtUtc(): ?DateTimeImmutable
@@ -169,30 +162,22 @@ class RuntimeSettingsService extends Component
 
     public function setLastDailyDigestSentAtUtc(?DateTimeInterface $utc): bool
     {
-        $row = $this->getRow();
-        if ($utc === null) {
-            $row->lastDailyDigestSentAt = null;
-        } else {
-            $immutable = $utc instanceof DateTimeImmutable ? $utc : DateTimeImmutable::createFromInterface($utc);
-            $row->lastDailyDigestSentAt = \DateTime::createFromImmutable($immutable->setTimezone(new \DateTimeZone('UTC')));
-        }
-
-        $ok = $row->save(false);
-        if ($ok) {
-            $this->invalidateCache();
-        }
-
-        return $ok;
+        return $this->setDigestSentAt('lastDailyDigestSentAt', $utc);
     }
 
     public function setLastWeeklyDigestSentAtUtc(?DateTimeInterface $utc): bool
     {
+        return $this->setDigestSentAt('lastWeeklyDigestSentAt', $utc);
+    }
+
+    private function setDigestSentAt(string $column, ?DateTimeInterface $utc): bool
+    {
         $row = $this->getRow();
         if ($utc === null) {
-            $row->lastWeeklyDigestSentAt = null;
+            $row->$column = null;
         } else {
             $immutable = $utc instanceof DateTimeImmutable ? $utc : DateTimeImmutable::createFromInterface($utc);
-            $row->lastWeeklyDigestSentAt = \DateTime::createFromImmutable($immutable->setTimezone(new \DateTimeZone('UTC')));
+            $row->$column = \DateTime::createFromImmutable($immutable->setTimezone(new \DateTimeZone('UTC')));
         }
 
         $ok = $row->save(false);
@@ -204,19 +189,15 @@ class RuntimeSettingsService extends Component
     }
 
     /**
-     * Reset all six user-facing override columns to null (use plugin Settings defaults).
+     * Reset all seven user-facing override columns to null (use plugin Settings defaults).
      * Does not clear operational state (lastDailyDigestSentAt, lastWeeklyDigestSentAt).
      */
     public function clearAllOverrides(): bool
     {
         $row = $this->getRow();
-        $row->defaultBlockDurationMinutes = null;
-        $row->permanentBlockAfterAutomaticBlocks = null;
-        $row->failedLoginThreshold = null;
-        $row->failedLoginWindowMinutes = null;
-        $row->maxRequestsPerIpPerMinute = null;
-        $row->httpRateLimitAlertsBeforeBlock = null;
-        $row->httpRateLimitAlertWindowMinutes = null;
+        foreach (array_keys(self::LIMIT_ATTRIBUTES) as $column) {
+            $row->$column = null;
+        }
 
         $ok = $row->save(false);
         if ($ok) {
@@ -228,44 +209,29 @@ class RuntimeSettingsService extends Component
 
     /**
      * @param array{
-     *   defaultBlockDurationMinutes?: int,
-     *   permanentBlockAfterAutomaticBlocks?: int|null,
-     *   failedLoginThreshold?: int|null,
-     *   failedLoginWindowMinutes?: int|null,
-     *   maxRequestsPerIpPerMinute?: int|null,
-     *   httpRateLimitAlertsBeforeBlock?: int|null,
-     *   httpRateLimitAlertWindowMinutes?: int|null,
+     *   defaultBlockDurationMinutes?: int|string|null,
+     *   permanentBlockAfterAutomaticBlocks?: int|string|null,
+     *   failedLoginThreshold?: int|string|null,
+     *   failedLoginWindowMinutes?: int|string|null,
+     *   maxRequestsPerIpPerMinute?: int|string|null,
+     *   httpRateLimitAlertsBeforeBlock?: int|string|null,
+     *   httpRateLimitAlertWindowMinutes?: int|string|null,
      * } $attributes
      */
     public function save(array $attributes): bool
     {
         $row = $this->getRow();
 
-        if (array_key_exists('defaultBlockDurationMinutes', $attributes)) {
-            $val = $attributes['defaultBlockDurationMinutes'];
-            if ($val === '' || $val === null) {
-                $row->defaultBlockDurationMinutes = null;
-            } else {
-                $row->defaultBlockDurationMinutes = min(525600, max(1, (int) $val));
-            }
-        }
-        $caps = [
-            'permanentBlockAfterAutomaticBlocks' => 100000,
-            'failedLoginThreshold' => 10000,
-            'failedLoginWindowMinutes' => 10080,
-            'maxRequestsPerIpPerMinute' => 1000000,
-            'httpRateLimitAlertsBeforeBlock' => 100000,
-            'httpRateLimitAlertWindowMinutes' => 10080,
-        ];
-        foreach ($caps as $key => $maxVal) {
-            if (!array_key_exists($key, $attributes)) {
+        foreach (self::LIMIT_ATTRIBUTES as $column => $attribute) {
+            if (!array_key_exists($column, $attributes)) {
                 continue;
             }
-            $val = $attributes[$key];
+            $val = $attributes[$column];
             if ($val === '' || $val === null) {
-                $row->$key = null;
+                $row->$column = null;
             } else {
-                $row->$key = min($maxVal, max(1, (int) $val));
+                $limits = Settings::LIMITS[$attribute];
+                $row->$column = min($limits['max'], max($limits['min'], (int) $val));
             }
         }
 

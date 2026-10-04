@@ -41,7 +41,6 @@ class DashboardController extends Controller
                 'blocked' => 'fort/blocked',
                 'alerts' => 'fort/alerts',
                 'events' => 'fort/events',
-                default => 'fort/dashboard',
             };
             $params = array_filter([
                 'site' => $request->getQueryParam('site'),

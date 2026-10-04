@@ -28,9 +28,20 @@
     "php": "^8.2",
     "craftcms/cms": "^4.0.0|^5.0.0"
   },
+  "require-dev": {
+    "craftcms/ecs": "dev-main#3823f989668e12a85ba681f8c7f3fd8488e23066",
+    "craftcms/phpstan": "dev-main#ea74f70557e8efeda2fba6e273d6567b333a9d90",
+    "phpstan/phpstan": "2.2.17",
+    "phpunit/phpunit": "10.5.65"
+  },
   "autoload": {
     "psr-4": {
       "allomambo\\fort\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "allomambo\\fort\\tests\\": "tests/"
     }
   },
   "extra": {
@@ -54,6 +65,10 @@
     }
   },
   "scripts": {
+    "check-cs": "ecs check --ansi",
+    "fix-cs": "ecs check --ansi --fix",
+    "phpstan": "phpstan --memory-limit=1G",
+    "test": "phpunit",
     "release": "bash scripts/release/index.sh"
   },
   "scripts-descriptions": {

@@ -6,8 +6,8 @@ use allomambo\fort\helpers\FortClientIp;
 use allomambo\fort\helpers\IpHelper;
 use allomambo\fort\Plugin;
 use Craft;
-use craft\helpers\Json;
 use craft\base\Component;
+use craft\helpers\Json;
 use yii\web\Response;
 use yii\web\TooManyRequestsHttpException;
 
@@ -134,9 +134,6 @@ class RateLimitService extends Component
         }
 
         $retryAfter = self::MINUTE_SECONDS - (time() % self::MINUTE_SECONDS);
-        if ($retryAfter < 1) {
-            $retryAfter = self::MINUTE_SECONDS;
-        }
 
         Craft::$app->getResponse()->format = Response::FORMAT_RAW;
         Craft::$app->getResponse()->headers->set('Retry-After', (string) $retryAfter);
@@ -152,7 +149,7 @@ class RateLimitService extends Component
         \yii\caching\CacheInterface $cache,
         string $ip,
         int $alertWindowMinutes,
-        int $alertsBeforeBlock
+        int $alertsBeforeBlock,
     ): array {
         $alertWindowMinutes = max(1, $alertWindowMinutes);
         $alertsBeforeBlock = max(1, $alertsBeforeBlock);
@@ -174,7 +171,7 @@ class RateLimitService extends Component
             }
         }
 
-        $timestamps = array_values(array_filter($timestamps, static function ($ts) use ($cutoff) {
+        $timestamps = array_values(array_filter($timestamps, static function($ts) use ($cutoff) {
             return is_numeric($ts) && (int) $ts >= $cutoff;
         }));
 

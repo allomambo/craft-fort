@@ -89,11 +89,8 @@ final class IpHelper
             return false;
         }
         [$subnet, $maskBits] = $parts;
-        if (!ctype_digit((string) $maskBits) && !((string) $maskBits === '0')) {
-            // allow plain integers only
-            if (!preg_match('/^\d+$/', (string) $maskBits)) {
-                return false;
-            }
+        if (!ctype_digit($maskBits)) {
+            return false;
         }
         $maskBits = (int) $maskBits;
         if ($maskBits < 0 || $maskBits > 32) {
@@ -202,6 +199,7 @@ final class IpHelper
      * or DNS errors. If the caller passes a literal IP, no DNS lookup is performed.
      *
      * @param list<string>|null $resolvedIps out param for the set of resolved addresses
+     * @param-out list<string> $resolvedIps
      */
     public static function hostnameResolvesToPublicOnly(string $host, ?array &$resolvedIps = null): bool
     {

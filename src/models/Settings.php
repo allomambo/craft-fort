@@ -3,11 +3,26 @@
 namespace allomambo\fort\models;
 
 use allomambo\fort\helpers\IpHelper;
+use allomambo\fort\helpers\WebhookUrlGuard;
 use Craft;
 use craft\base\Model;
 
 class Settings extends Model
 {
+    /**
+     * Inclusive bounds for the integer limits, keyed by settings attribute. Shared by validation
+     * ({@see self::rules()}) and the runtime overrides in `RuntimeSettingsService`.
+     */
+    public const LIMITS = [
+        'maxRequestsPerIpPerMinute' => ['min' => 1, 'max' => 1000000],
+        'httpRateLimitAlertsBeforeBlock' => ['min' => 1, 'max' => 100000],
+        'httpRateLimitAlertWindowMinutes' => ['min' => 1, 'max' => 10080],
+        'failedLoginThresholdPerIp' => ['min' => 1, 'max' => 10000],
+        'failedLoginWindowMinutes' => ['min' => 1, 'max' => 10080],
+        'defaultBlockDurationMinutes' => ['min' => 1, 'max' => 525600],
+        'permanentBlockAfterAutomaticBlocks' => ['min' => 1, 'max' => 100000],
+    ];
+
     public bool $httpRateLimitEnabled = true;
 
     public int $maxRequestsPerIpPerMinute = 400;
@@ -104,53 +119,19 @@ class Settings extends Model
     /** Report-only CSP; empty = not emitted. */
     public string $contentSecurityPolicyReportOnly = '';
 
-    public function beforeValidate(): bool
-    {
-        // Lightswitches POST '' when off; normalize for boolean rules.
-        foreach (
-            [
-                'httpRateLimitEnabled',
-                'excludeCpFromHttpRateLimit',
-                'excludeCpResourcesFromHttpRateLimit',
-                'authLoggingEnabled',
-                'significantEventEmailEnabled',
-                'dailyDigestEmailEnabled',
-                'weeklyDigestEmailEnabled',
-                'digestSendOnActivity',
-                'autoSweepExpiredIpBlocks',
-                'webhookOnSignificantEvent',
-                'anonymizePii',
-                'emitSecurityHeaders',
-            ] as $boolAttr
-        ) {
-            $v = $this->$boolAttr ?? null;
-            if ($v === '' || $v === '0' || $v === 0) {
-                $this->$boolAttr = false;
-            } elseif ($v === '1' || $v === 1) {
-                $this->$boolAttr = true;
-            }
-        }
-
-        return parent::beforeValidate();
-    }
-
     public function rules(): array
     {
         return [
             [['httpRateLimitEnabled', 'excludeCpFromHttpRateLimit', 'excludeCpResourcesFromHttpRateLimit', 'authLoggingEnabled', 'autoSweepExpiredIpBlocks', 'significantEventEmailEnabled', 'dailyDigestEmailEnabled', 'weeklyDigestEmailEnabled', 'digestSendOnActivity', 'webhookOnSignificantEvent', 'anonymizePii', 'emitSecurityHeaders'], 'boolean'],
             [['maxRequestsPerIpPerMinute', 'httpRateLimitAlertsBeforeBlock', 'httpRateLimitAlertWindowMinutes', 'failedLoginThresholdPerIp', 'failedLoginWindowMinutes', 'defaultBlockDurationMinutes', 'permanentBlockAfterAutomaticBlocks', 'dailyDigestHour', 'weeklyDigestDayOfWeek', 'eventRetentionDays'], 'integer'],
-            [['maxRequestsPerIpPerMinute'], 'integer', 'min' => 1, 'max' => 1000000],
-            [['httpRateLimitAlertsBeforeBlock'], 'integer', 'min' => 1, 'max' => 100000],
-            [['httpRateLimitAlertWindowMinutes'], 'integer', 'min' => 1, 'max' => 10080],
-            [['failedLoginThresholdPerIp'], 'integer', 'min' => 1, 'max' => 10000],
-            [['failedLoginWindowMinutes'], 'integer', 'min' => 1, 'max' => 10080],
-            [['defaultBlockDurationMinutes'], 'integer', 'min' => 1, 'max' => 525600],
-            [['permanentBlockAfterAutomaticBlocks'], 'integer', 'min' => 1, 'max' => 100000],
+            ...array_map(
+                fn(string $attribute) => [[$attribute], 'integer', 'min' => self::LIMITS[$attribute]['min'], 'max' => self::LIMITS[$attribute]['max']],
+                array_keys(self::LIMITS),
+            ),
             [['dailyDigestHour'], 'integer', 'min' => 0, 'max' => 23],
             [['weeklyDigestDayOfWeek'], 'integer', 'min' => 0, 'max' => 6],
             [['eventRetentionDays'], 'integer', 'min' => 1, 'max' => 3650],
             [['webhookUrl'], 'string', 'max' => 2048],
-            [['webhookUrl'], 'url', 'pattern' => '/^https:\/\/.+/i', 'message' => Craft::t('fort', 'Webhook URL must be HTTPS.'), 'when' => fn() => $this->webhookUrl !== ''],
             [['webhookUrl'], 'validateWebhookUrlHostname', 'when' => fn() => $this->webhookUrl !== ''],
             [['excludedIps'], 'validateExcludedIps'],
             [['maintainerUserIds'], 'each', 'rule' => ['integer']],
@@ -176,86 +157,32 @@ class Settings extends Model
     }
 
     /**
-     * Reject webhook URLs that embed credentials, use a non-standard port, or whose host resolves
-     * to a private / reserved / link-local / loopback / CGNAT / metadata IP (SSRF protection).
+     * Reject webhook URLs that {@see WebhookUrlGuard::rejection()} refuses, so a URL saved here is held
+     * to the exact rules that {@see \allomambo\fort\services\NotificationService::postWebhook()} enforces.
      */
     public function validateWebhookUrlHostname(string $attribute): void
     {
-        $url = (string) $this->$attribute;
-        $parts = parse_url($url);
-        if ($parts === false || empty($parts['host'])) {
-            // The existing url rule already produced an error for this case.
-            return;
-        }
-
-        if (isset($parts['user']) || isset($parts['pass'])) {
-            $this->addError($attribute, Craft::t('fort', 'Webhook URL must not include credentials.'));
-            return;
-        }
-
-        if (isset($parts['port']) && (int) $parts['port'] !== 443) {
-            $this->addError($attribute, Craft::t('fort', 'Webhook URL must use the default HTTPS port (443).'));
-            return;
-        }
-
-        $resolved = [];
-        try {
-            $ok = IpHelper::hostnameResolvesToPublicOnly((string) $parts['host'], $resolved);
-        } catch (\Throwable) {
-            $ok = false;
-        }
-        if (!$ok) {
-            $this->addError($attribute, Craft::t('fort', 'Webhook URL host must resolve to a public IP address (no loopback, private, link-local, CGNAT, or metadata addresses).'));
+        $rejection = WebhookUrlGuard::rejection((string) $this->$attribute);
+        if ($rejection !== null) {
+            $this->addError($attribute, $rejection['message']);
         }
     }
 
     /**
-     * Mirrors the send-time checks in {@see \allomambo\fort\services\NotificationService::postWebhook()} so an
-     * admin can see in the CP, not just in logs, that a configured webhook (typically from `config/fort.php`,
-     * which bypasses {@see self::rules()}) will be silently refused at send time.
+     * Lets an admin see in the CP, not just in logs, that a configured webhook (typically from
+     * `config/fort.php`, which bypasses {@see self::rules()}) will be silently refused at send time.
      *
      * Returns a translated error string describing why the URL would be refused, or null when it is fine.
      */
     public function getWebhookUrlSafetyError(): ?string
     {
-        $url = $this->webhookUrl;
-        if ($url === '') {
+        if ($this->webhookUrl === '') {
             return null;
         }
 
-        return $this->webhookUrlSendTimeError($url);
-    }
+        $rejection = WebhookUrlGuard::rejection($this->webhookUrl);
 
-    private function webhookUrlSendTimeError(string $url): ?string
-    {
-        if (!str_starts_with($url, 'https://')) {
-            return Craft::t('fort', 'Webhook URL must be HTTPS.');
-        }
-
-        $parts = parse_url($url);
-        if ($parts === false || empty($parts['host'])) {
-            return Craft::t('fort', 'Webhook URL could not be parsed.');
-        }
-
-        if (isset($parts['user']) || isset($parts['pass'])) {
-            return Craft::t('fort', 'Webhook URL must not include credentials.');
-        }
-
-        if (isset($parts['port']) && (int) $parts['port'] !== 443) {
-            return Craft::t('fort', 'Webhook URL must use the default HTTPS port (443).');
-        }
-
-        $resolved = [];
-        try {
-            $public = IpHelper::hostnameResolvesToPublicOnly((string) $parts['host'], $resolved);
-        } catch (\Throwable) {
-            return Craft::t('fort', 'Webhook URL host could not be resolved.');
-        }
-        if (!$public) {
-            return Craft::t('fort', 'Webhook URL host must resolve to a public IP address (no loopback, private, link-local, CGNAT, or metadata addresses).');
-        }
-
-        return null;
+        return $rejection === null ? null : $rejection['message'];
     }
 
     /**
@@ -264,8 +191,7 @@ class Settings extends Model
      */
     public function validateExcludedIps(): void
     {
-        $list = is_array($this->excludedIps) ? $this->excludedIps : [];
-        foreach ($list as $index => $line) {
+        foreach ($this->excludedIps as $index => $line) {
             $line = trim((string) $line);
             if ($line === '') {
                 continue;

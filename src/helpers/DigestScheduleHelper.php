@@ -69,7 +69,7 @@ final class DigestScheduleHelper
         }
 
         $last = DateTimeImmutable::createFromInterface($lastSentUtc)->setTimezone($tz);
-        $weekStart = fn (DateTimeImmutable $local): DateTimeImmutable => $local->setTime(0, 0, 0)->modify('-' . (int) $local->format('w') . ' days');
+        $weekStart = fn(DateTimeImmutable $local): DateTimeImmutable => $local->setTime(0, 0, 0)->modify('-' . (int) $local->format('w') . ' days');
 
         return $weekStart($last)->format('Y-m-d') !== $weekStart($now)->format('Y-m-d');
     }

@@ -6,9 +6,12 @@ use allomambo\fort\helpers\AlertDisplayHelper;
 use allomambo\fort\helpers\DigestScheduleHelper;
 use allomambo\fort\helpers\IpHelper;
 use allomambo\fort\helpers\PiiRedactor;
+use allomambo\fort\helpers\TriggeringUser;
+use allomambo\fort\helpers\WebhookUrlGuard;
 use allomambo\fort\models\Settings;
 use allomambo\fort\Plugin;
 use Craft;
+use craft\base\Component;
 use craft\elements\User;
 use craft\helpers\Html;
 use craft\helpers\UrlHelper;
@@ -16,7 +19,6 @@ use craft\mail\Message;
 use craft\web\View;
 use DateTimeImmutable;
 use DateTimeZone;
-use craft\base\Component;
 
 class NotificationService extends Component
 {
@@ -227,13 +229,7 @@ class NotificationService extends Component
         /** @var \allomambo\fort\models\Settings $settings */
         $settings = $plugin->getSettings();
 
-        $req = Craft::$app->getRequest();
-        if (!$req->getIsConsoleRequest() && !$req->getIsCpRequest()) {
-            $identity = Craft::$app->getUser()->getIdentity();
-            if ($identity !== null && !isset($payload['triggeringUserId'])) {
-                $payload['triggeringUserId'] = $identity->id;
-            }
-        }
+        $payload = TriggeringUser::stamp($payload);
 
         // Single redaction point: everything below (alert row, webhook, email body and its JSON dump)
         // is derived from $payload, so there is no path left carrying the raw values.
@@ -246,7 +242,7 @@ class NotificationService extends Component
             $clientIp = PiiRedactor::anonymizeIp($clientIp);
         }
 
-        $requestPath = isset($payload['requestPath']) && $payload['requestPath'] !== null && $payload['requestPath'] !== ''
+        $requestPath = isset($payload['requestPath']) && $payload['requestPath'] !== ''
             ? (string) $payload['requestPath']
             : null;
 
@@ -833,42 +829,18 @@ class NotificationService extends Component
         /** @var \allomambo\fort\models\Settings $settings */
         $settings = $plugin->getSettings();
         $url = $settings->webhookUrl;
-        if ($url === '' || !str_starts_with($url, 'https://')) {
+        if ($url === '') {
             return;
         }
 
-        $parts = parse_url($url);
-        if ($parts === false || empty($parts['host'])) {
-            Craft::warning('Fort webhook blocked: could not parse URL host.', __METHOD__);
+        // Re-checked on every send, not just at save time: DNS answers can change under a saved host.
+        $rejection = WebhookUrlGuard::rejection($url);
+        if ($rejection !== null) {
+            Craft::warning('Fort webhook blocked: ' . $rejection['logReason'], __METHOD__);
             return;
         }
 
-        if (isset($parts['user']) || isset($parts['pass'])) {
-            Craft::warning('Fort webhook blocked: URL contains credentials.', __METHOD__);
-            return;
-        }
-
-        if (isset($parts['port']) && (int) $parts['port'] !== 443) {
-            Craft::warning('Fort webhook blocked: non-default HTTPS port ' . (int) $parts['port'] . '.', __METHOD__);
-            return;
-        }
-
-        $resolved = [];
-        try {
-            $public = IpHelper::hostnameResolvesToPublicOnly((string) $parts['host'], $resolved);
-        } catch (\Throwable $e) {
-            Craft::warning('Fort webhook blocked: host resolution failed: ' . $e->getMessage(), __METHOD__);
-            return;
-        }
-        if (!$public) {
-            Craft::warning(
-                'Fort webhook blocked: host ' . (string) $parts['host']
-                . ' resolved to private/reserved address(es): '
-                . implode(',', $resolved ?? []),
-                __METHOD__
-            );
-            return;
-        }
+        $host = (string) parse_url($url, PHP_URL_HOST);
 
         try {
             $client = Craft::createGuzzleClient([
@@ -884,13 +856,13 @@ class NotificationService extends Component
             $status = $response->getStatusCode();
             if ($status >= 300 && $status < 400) {
                 Craft::warning(
-                    'Fort webhook refused: target ' . (string) $parts['host']
+                    'Fort webhook refused: target ' . $host
                     . ' attempted to redirect (status ' . $status . '); redirect not followed.',
                     __METHOD__
                 );
             }
         } catch (\Throwable $e) {
-            Craft::warning('Fort webhook failed: ' . $e->getMessage(), __METHOD__);
+            Craft::warning('Fort webhook failed: ' . WebhookUrlGuard::sendFailureLogReason($host, $e), __METHOD__);
         }
     }
 

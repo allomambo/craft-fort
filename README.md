@@ -182,6 +182,8 @@ All settings from the Settings model can be overridden. Fort detects whether ove
 
 Fort records the client IP and, on failed logins, the attempted username or email. Set `anonymizePii` to `true` (Settings > Fort > Data retention, or `config/fort.php`) to hash the attempted login and mask the client IP (IPv4 last octet, IPv6 to /48) before anything is stored in an event or alert, emailed, or sent to a webhook.
 
+Hashing is keyed with your site's security key, so tokens cannot be pre-computed or compared across sites. If no security key is available, the attempted login is replaced with `[redacted]` instead of being hashed — it is never stored as typed — and a warning is logged once per request.
+
 The setting is off by default and applies to new data only — rows written before enabling it keep their original values.
 
 ### Runtime Overrides
