@@ -154,7 +154,8 @@ final class IpHelper
 
     /**
      * True when the given string is a private, reserved, loopback, link-local, CGNAT,
-     * multicast, broadcast, or IPv4/IPv6 metadata address — i.e., anything SSRF must not reach.
+     * IPv4 multicast, broadcast, documentation, benchmarking, NAT64, 6to4, or IPv4/IPv6
+     * metadata address — i.e., anything SSRF must not reach.
      * Unparseable input returns true (fail closed).
      */
     public static function isPrivateOrReservedIp(string $ip): bool
@@ -170,7 +171,12 @@ final class IpHelper
         // inet_ntop writes IPv4-mapped addresses as ::ffff:a.b.c.d, including hex input
         // such as ::ffff:7f00:1, so canonicalIp can check the embedded IPv4.
         $ip = self::canonicalIp($normalized);
-        if (filter_var($ip, FILTER_VALIDATE_IP) === false) {
+
+        // NAT64 (64:ff9b::/96) and 6to4 (2002::/16) can embed any IPv4, including a private one.
+        if (strlen($packed) === 16 && (
+            str_starts_with($packed, "\x00\x64\xff\x9b\x00\x00\x00\x00\x00\x00\x00\x00")
+            || str_starts_with($packed, "\x20\x02")
+        )) {
             return true;
         }
 
@@ -178,15 +184,19 @@ final class IpHelper
         // - RFC1918 (10/8, 172.16/12, 192.168/16)
         // - loopback (127/8, ::1)
         // - link-local (169.254/16, fe80::/10)
-        // - multicast, 0.0.0.0/8, unspecified
+        // - 0.0.0.0/8, unspecified, class E (240/4)
         // - IPv6 ULA (fc00::/7) and other PHP-reserved ranges
+        // It does not cover IPv4 multicast (224/4), TEST-NET-1, or benchmarking.
         if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
             return true;
         }
 
-        // Belt-and-suspenders: CGNAT (100.64.0.0/10) — not always covered by FILTER_FLAG_NO_RES_RANGE.
-        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) && self::ipv4InCidr($ip, '100.64.0.0/10')) {
-            return true;
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            foreach (['100.64.0.0/10', '224.0.0.0/4', '192.0.2.0/24', '198.18.0.0/15'] as $cidr) {
+                if (self::ipv4InCidr($ip, $cidr)) {
+                    return true;
+                }
+            }
         }
 
         // Cloud metadata service (AWS, GCP, Azure, DO): 169.254.169.254 (technically link-local and already caught,
