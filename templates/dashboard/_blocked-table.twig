@@ -13,6 +13,8 @@
 {% set footerCount = footerCount|default(blockedRows|length) %}
 {% set tzHint = tzHint|default('') %}
 {% set emptyColspan = compact ? 5 : 7 %}
+{# ?? binds tighter than "starts with"; parentheses keep the version check from running on the boolean. #}
+{% set fortCraftIs5 = fortCraftIs5 ?? (craft.app.getVersion() starts with '5') %}
 
 <table class="data fullwidth">
   <thead>
@@ -62,7 +64,6 @@
             {% endif %}
           </td>
           <td class="thin">
-            {% set fortCraftIs5 = fortCraftIs5 ?? craft.app.getVersion() starts with '5' %}
             {% if fortCraftIs5 %}
               {% set fortRowActionItems = [
                 {
