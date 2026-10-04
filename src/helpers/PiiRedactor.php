@@ -14,6 +14,9 @@ use Craft;
  */
 final class PiiRedactor
 {
+    /** Stands in for the attempted login when no security key is available to key the HMAC. */
+    public const REDACTION_MARKER = '[redacted]';
+
     /** Payload / meta keys that carry a client IP address. */
     private const IP_KEYS = ['ip', 'blockedClientIp'];
 
@@ -21,6 +24,16 @@ final class PiiRedactor
 
     /** Hex characters kept from the digest: short enough to stay readable, wide enough to avoid collisions. */
     private const HASH_LENGTH = 12;
+
+    /**
+     * Context label for the token subkey. Keeps login tokens in their own key domain, so they cannot
+     * be reproduced with Craft's generic data hashing (`Security::hashData()`, the Twig `|hash` filter,
+     * `redirectInput()`), which HMACs with the security key directly.
+     */
+    private const SUBKEY_CONTEXT = 'fort:attempted-login:v1';
+
+    /** Set once a request has already warned about the missing security key. */
+    private static bool $missingKeyWarned = false;
 
     /**
      * Mask an IP down to its network portion: IPv4 keeps the first three octets,
@@ -58,8 +71,12 @@ final class PiiRedactor
 
     /**
      * Turn a login into a stable, non-reversible token so repeated attempts still correlate
-     * without storing the identity. Salted with the site security key so tokens cannot be
-     * pre-computed or compared across sites.
+     * without storing the identity. Keyed with an HMAC on a {@see self::SUBKEY_CONTEXT} subkey
+     * derived from the site security key, so tokens cannot be pre-computed, compared across
+     * sites, or reproduced through any other feature that hashes with the security key.
+     *
+     * Without a usable security key there is nothing to key the HMAC with, so the login is
+     * replaced by {@see self::REDACTION_MARKER} rather than hashed; never returned as typed.
      */
     public static function hashLogin(string $login): string
     {
@@ -68,14 +85,21 @@ final class PiiRedactor
             return '';
         }
 
-        $digest = hash('sha256', self::salt() . '|' . $normalized);
+        $key = self::securityKey();
+        if ($key === null) {
+            self::warnMissingKeyOnce();
 
-        return self::HASH_PREFIX . substr($digest, 0, self::HASH_LENGTH);
+            return self::REDACTION_MARKER;
+        }
+
+        $subkey = hash_hmac('sha256', self::SUBKEY_CONTEXT, $key, true);
+
+        return self::HASH_PREFIX . substr(hash_hmac('sha256', $normalized, $subkey), 0, self::HASH_LENGTH);
     }
 
     /**
-     * Copy of $meta with the attempted login hashed and every IP-bearing key masked.
-     * Other keys (including the Craft user IDs the CP relies on) are left untouched.
+     * Copy of $meta with the attempted login hashed (or marked redacted) and every IP-bearing
+     * key masked. Other keys (including the Craft user IDs the CP relies on) are left untouched.
      *
      * @param array<string, mixed> $meta
      * @return array<string, mixed>
@@ -96,19 +120,46 @@ final class PiiRedactor
     }
 
     /**
-     * Site security key, or a constant fallback when Craft is not bootstrapped
-     * (console edge cases) so hashing never throws.
+     * Site security key, or null when it is empty or unreadable (Craft not bootstrapped in
+     * console edge cases), so reading it never throws.
      */
-    private static function salt(): string
+    private static function securityKey(): ?string
     {
         try {
             $key = Craft::$app !== null
                 ? Craft::$app->getConfig()->getGeneral()->securityKey
                 : null;
         } catch (\Throwable) {
-            $key = null;
+            return null;
         }
 
-        return is_string($key) && $key !== '' ? $key : 'fort';
+        return is_string($key) && $key !== '' ? $key : null;
+    }
+
+    /**
+     * Warn at most once per request that attempted logins are redacted instead of hashed.
+     */
+    private static function warnMissingKeyOnce(): void
+    {
+        if (self::$missingKeyWarned) {
+            return;
+        }
+
+        // Only a call that can actually log counts as the one warning, so an earlier call made
+        // before Craft was available does not swallow it.
+        if (Craft::$app === null) {
+            return;
+        }
+
+        self::$missingKeyWarned = true;
+
+        try {
+            Craft::warning(
+                'Fort: no security key available to hash attempted logins; they are redacted instead.',
+                __METHOD__
+            );
+        } catch (\Throwable) {
+            // Redaction must not fail because logging did.
+        }
     }
 }
