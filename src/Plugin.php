@@ -2,27 +2,26 @@
 
 namespace allomambo\fort;
 
-use Craft;
 use allomambo\fort\helpers\ConfigOverrideHelper;
 use allomambo\fort\helpers\FortClientIp;
 use allomambo\fort\helpers\FortCp;
 use allomambo\fort\helpers\RuntimePresenter;
-use craft\base\Model;
+use Craft;
 use craft\base\Plugin as BasePlugin;
 use craft\controllers\UsersController;
 use craft\elements\User;
 use craft\events\LoginFailureEvent;
+use craft\events\RegisterCacheOptionsEvent;
 use craft\events\RegisterTemplateRootsEvent;
 use craft\events\RegisterUrlRulesEvent;
 use craft\helpers\Html;
 use craft\helpers\StringHelper;
 use craft\helpers\UrlHelper;
 use craft\i18n\PhpMessageSource;
+use craft\utilities\ClearCaches;
 use craft\web\Application as WebApplication;
 use craft\web\Controller;
 use craft\web\UrlManager;
-use craft\events\RegisterCacheOptionsEvent;
-use craft\utilities\ClearCaches;
 use craft\web\View;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
@@ -32,6 +31,14 @@ use yii\web\Response as YiiResponse;
 
 /**
  * Fort — rate limiting and security event monitoring.
+ *
+ * @property-read services\AlertService $alerts
+ * @property-read services\IpBlockService $ipBlocks
+ * @property-read services\NotificationService $notifications
+ * @property-read services\RateLimitService $rateLimiter
+ * @property-read services\RuntimeSettingsService $runtimeSettings
+ * @property-read services\SecurityEventService $securityEvents
+ * @property-read services\SecurityHeadersService $securityHeaders
  */
 class Plugin extends BasePlugin
 {
@@ -86,12 +93,12 @@ class Plugin extends BasePlugin
         Event::on(
             ClearCaches::class,
             ClearCaches::EVENT_REGISTER_CACHE_OPTIONS,
-            static function (RegisterCacheOptionsEvent $event) {
+            static function(RegisterCacheOptionsEvent $event) {
                 $event->options[] = [
                     'key' => 'fort-site-icon',
                     'label' => Craft::t('fort', 'Fort site icon'),
                     'info' => Craft::t('fort', 'Favicon found in the web root for notification emails.'),
-                    'action' => static function () {
+                    'action' => static function() {
                         Craft::$app->getCache()->delete(services\NotificationService::SITE_ICON_CACHE_KEY);
                     },
                 ];
@@ -102,7 +109,7 @@ class Plugin extends BasePlugin
         Event::on(
             View::class,
             View::EVENT_REGISTER_CP_TEMPLATE_ROOTS,
-            function (RegisterTemplateRootsEvent $e) {
+            function(RegisterTemplateRootsEvent $e) {
                 $plugin = self::getInstance();
                 if ($plugin === null) {
                     return;
@@ -115,7 +122,7 @@ class Plugin extends BasePlugin
         );
 
         // Craft 4 Twig has no craft.cp.elementHtml / elementChip(); expose a dual-compatible helper.
-        Craft::$app->getView()->registerTwigExtension(new class () extends AbstractExtension {
+        Craft::$app->getView()->registerTwigExtension(new class() extends AbstractExtension {
             public function getFunctions(): array
             {
                 return [
@@ -130,7 +137,7 @@ class Plugin extends BasePlugin
         Event::on(
             UrlManager::class,
             UrlManager::EVENT_REGISTER_CP_URL_RULES,
-            static function (RegisterUrlRulesEvent $event) {
+            static function(RegisterUrlRulesEvent $event) {
                 $event->rules = [
                     'fort/clear-events' => 'fort/dashboard/clear-events',
                     'fort/clear-runtime' => 'fort/dashboard/clear-runtime',
@@ -166,8 +173,11 @@ class Plugin extends BasePlugin
             Event::on(
                 \yii\base\Application::class,
                 \yii\base\Application::EVENT_BEFORE_REQUEST,
-                function () {
+                function() {
                     $plugin = self::getInstance();
+                    if ($plugin === null) {
+                        return;
+                    }
                     $plugin->ipBlocks->enforceRequest();
                     $plugin->rateLimiter->enforce();
                 }
@@ -176,7 +186,7 @@ class Plugin extends BasePlugin
             Event::on(
                 \yii\base\Application::class,
                 \yii\base\Application::EVENT_AFTER_REQUEST,
-                function () {
+                function() {
                     if (Craft::$app->getRequest()->getIsConsoleRequest()) {
                         return;
                     }
@@ -204,7 +214,7 @@ class Plugin extends BasePlugin
             Event::on(
                 \craft\web\Response::class,
                 \yii\web\Response::EVENT_AFTER_PREPARE,
-                function (\yii\base\Event $event) {
+                function(\yii\base\Event $event) {
                     $plugin = self::getInstance();
                     if ($plugin === null || !Craft::$app->getPlugins()->isPluginEnabled($plugin->id)) {
                         return;
@@ -227,7 +237,7 @@ class Plugin extends BasePlugin
         Event::on(
             UsersController::class,
             UsersController::EVENT_LOGIN_FAILURE,
-            function (LoginFailureEvent $event) {
+            function(LoginFailureEvent $event) {
                 $plugin = self::getInstance();
                 if ($plugin === null || !Craft::$app->getPlugins()->isPluginEnabled($plugin->id)) {
                     return;
@@ -238,7 +248,7 @@ class Plugin extends BasePlugin
                 if ($event->user !== null) {
                     $attemptedLogin = $event->user->email ?: $event->user->username ?: null;
                 }
-                if ($attemptedLogin === null || $attemptedLogin === '') {
+                if ($attemptedLogin === null) {
                     $body = $request->getBodyParams();
                     $attemptedLogin = $body['loginName'] ?? $body['username'] ?? $body['email'] ?? null;
                 }
@@ -250,10 +260,10 @@ class Plugin extends BasePlugin
                     if ($clean === null) {
                         $clean = preg_replace('/[\x00-\x1F\x7F]/', '', $attemptedLogin) ?? '';
                     }
-                    $attemptedLogin = StringHelper::truncate(trim((string) $clean), 128);
-                    if ($attemptedLogin === '') {
-                        $attemptedLogin = null;
-                    }
+                    $cleanedLogin = trim((string) $clean);
+                    $attemptedLogin = $cleanedLogin === ''
+                        ? null
+                        : StringHelper::truncate($cleanedLogin, 128);
                 } else {
                     $attemptedLogin = null;
                 }
@@ -347,7 +357,7 @@ class Plugin extends BasePlugin
     public function renderPluginSettings(Controller $controller, bool $readOnly, string $context = 'global-settings'): YiiResponse
     {
         $view = Craft::$app->getView();
-        $settingsHtml = $view->namespaceInputs(function () use ($readOnly) {
+        $settingsHtml = $view->namespaceInputs(function() use ($readOnly) {
             if ($readOnly) {
                 return $this->renderSettingsHtmlReadOnly();
             }
@@ -425,7 +435,17 @@ class Plugin extends BasePlugin
         return $item;
     }
 
-    protected function createSettingsModel(): ?Model
+    public function getSettings(): models\Settings
+    {
+        $settings = parent::getSettings();
+        if (!$settings instanceof models\Settings) {
+            throw new \LogicException('Fort settings are unavailable.');
+        }
+
+        return $settings;
+    }
+
+    protected function createSettingsModel(): models\Settings
     {
         return new models\Settings();
     }
@@ -443,7 +463,7 @@ class Plugin extends BasePlugin
      */
     private function renderSettingsHtmlReadOnly(): string
     {
-        if (method_exists(Html::class, 'disableInputs')) {
+        if (is_callable([Html::class, 'disableInputs'])) {
             return (string) Html::disableInputs(fn() => $this->settingsHtml());
         }
 

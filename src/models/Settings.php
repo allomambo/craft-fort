@@ -104,36 +104,6 @@ class Settings extends Model
     /** Report-only CSP; empty = not emitted. */
     public string $contentSecurityPolicyReportOnly = '';
 
-    public function beforeValidate(): bool
-    {
-        // Lightswitches POST '' when off; normalize for boolean rules.
-        foreach (
-            [
-                'httpRateLimitEnabled',
-                'excludeCpFromHttpRateLimit',
-                'excludeCpResourcesFromHttpRateLimit',
-                'authLoggingEnabled',
-                'significantEventEmailEnabled',
-                'dailyDigestEmailEnabled',
-                'weeklyDigestEmailEnabled',
-                'digestSendOnActivity',
-                'autoSweepExpiredIpBlocks',
-                'webhookOnSignificantEvent',
-                'anonymizePii',
-                'emitSecurityHeaders',
-            ] as $boolAttr
-        ) {
-            $v = $this->$boolAttr ?? null;
-            if ($v === '' || $v === '0' || $v === 0) {
-                $this->$boolAttr = false;
-            } elseif ($v === '1' || $v === 1) {
-                $this->$boolAttr = true;
-            }
-        }
-
-        return parent::beforeValidate();
-    }
-
     public function rules(): array
     {
         return [
@@ -264,8 +234,7 @@ class Settings extends Model
      */
     public function validateExcludedIps(): void
     {
-        $list = is_array($this->excludedIps) ? $this->excludedIps : [];
-        foreach ($list as $index => $line) {
+        foreach ($this->excludedIps as $index => $line) {
             $line = trim((string) $line);
             if ($line === '') {
                 continue;

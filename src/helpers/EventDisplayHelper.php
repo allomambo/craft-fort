@@ -40,7 +40,7 @@ final class EventDisplayHelper
         }
 
         $path = $row['requestPath'] ?? null;
-        if ($path !== null && $path !== '' && (!isset($meta['requestPath']) || $meta['requestPath'] === '' || $meta['requestPath'] === null)) {
+        if ($path !== null && $path !== '' && (!isset($meta['requestPath']) || $meta['requestPath'] === '')) {
             $meta['requestPath'] = $path;
         }
 

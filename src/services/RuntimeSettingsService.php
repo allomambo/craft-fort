@@ -6,10 +6,10 @@ use allomambo\fort\models\Settings;
 use allomambo\fort\Plugin;
 use allomambo\fort\records\FortRuntimeRecord;
 use Craft;
+use craft\base\Component;
 use craft\helpers\StringHelper;
 use DateTimeImmutable;
 use DateTimeInterface;
-use craft\base\Component;
 
 /**
  * DB-backed runtime options (editable in CP when project config locks plugin settings).
@@ -228,13 +228,13 @@ class RuntimeSettingsService extends Component
 
     /**
      * @param array{
-     *   defaultBlockDurationMinutes?: int,
-     *   permanentBlockAfterAutomaticBlocks?: int|null,
-     *   failedLoginThreshold?: int|null,
-     *   failedLoginWindowMinutes?: int|null,
-     *   maxRequestsPerIpPerMinute?: int|null,
-     *   httpRateLimitAlertsBeforeBlock?: int|null,
-     *   httpRateLimitAlertWindowMinutes?: int|null,
+     *   defaultBlockDurationMinutes?: int|string|null,
+     *   permanentBlockAfterAutomaticBlocks?: int|string|null,
+     *   failedLoginThreshold?: int|string|null,
+     *   failedLoginWindowMinutes?: int|string|null,
+     *   maxRequestsPerIpPerMinute?: int|string|null,
+     *   httpRateLimitAlertsBeforeBlock?: int|string|null,
+     *   httpRateLimitAlertWindowMinutes?: int|string|null,
      * } $attributes
      */
     public function save(array $attributes): bool

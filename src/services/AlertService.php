@@ -5,12 +5,12 @@ namespace allomambo\fort\services;
 use allomambo\fort\helpers\AlertDisplayHelper;
 use allomambo\fort\records\AlertRecord;
 use Craft;
+use craft\base\Component;
 use craft\helpers\DateTimeHelper;
 use craft\helpers\Db;
 use craft\helpers\Json;
 use craft\helpers\StringHelper;
 use DateTimeZone;
-use craft\base\Component;
 
 class AlertService extends Component
 {
@@ -75,7 +75,7 @@ class AlertService extends Component
                 $decoded = json_decode((string) $raw, true);
                 if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
                     $rp = $row['requestPath'] ?? null;
-                    if ($rp !== null && $rp !== '' && (!isset($decoded['requestPath']) || $decoded['requestPath'] === '' || $decoded['requestPath'] === null)) {
+                    if ($rp !== null && $rp !== '' && (!isset($decoded['requestPath']) || $decoded['requestPath'] === '')) {
                         $decoded['requestPath'] = $rp;
                     }
                     $row['metaRows'] = AlertDisplayHelper::metaTableRows($decoded);
