@@ -79,12 +79,31 @@ final class IpHelperTest extends TestCase
         yield 'IPv4 CGNAT' => ['100.64.0.1'];
         yield 'IPv6 loopback' => ['::1'];
         yield 'IPv6 ULA' => ['fd00::1'];
+        yield 'IPv4-mapped hex loopback' => ['::ffff:7f00:1'];
+        yield 'IPv4-mapped hex private' => ['::ffff:c0a8:1'];
+        yield 'IPv4 multicast' => ['224.0.0.1'];
+        yield 'IPv4 multicast top' => ['239.255.255.255'];
+        yield 'documentation' => ['192.0.2.1'];
+        yield 'benchmarking' => ['198.18.0.1'];
+        yield 'benchmarking top' => ['198.19.255.255'];
+        yield 'NAT64' => ['64:ff9b::8.8.8.8'];
+        yield 'NAT64 embedded private' => ['64:ff9b::192.168.1.1'];
+        yield '6to4' => ['2002:808:808::'];
+        yield '6to4 embedded private' => ['2002:c0a8:101::'];
+        yield 'IPv4-mapped hex documentation' => ['::ffff:c000:201'];
     }
 
     public function testPublicAddressesAreAccepted(): void
     {
         self::assertFalse(IpHelper::isPrivateOrReservedIp('8.8.8.8'));
         self::assertFalse(IpHelper::isPrivateOrReservedIp('2606:4700:4700::1111'));
+        self::assertFalse(IpHelper::isPrivateOrReservedIp('::ffff:8.8.8.8'));
+        self::assertFalse(IpHelper::isPrivateOrReservedIp('::ffff:0808:0808'));
+        self::assertFalse(IpHelper::isPrivateOrReservedIp('223.255.255.255'));
+        self::assertFalse(IpHelper::isPrivateOrReservedIp('192.0.3.1'));
+        self::assertFalse(IpHelper::isPrivateOrReservedIp('198.17.0.1'));
+        self::assertFalse(IpHelper::isPrivateOrReservedIp('198.20.0.1'));
+        self::assertFalse(IpHelper::isPrivateOrReservedIp('64:ff9b:1::808:808'));
     }
 
     #[DataProvider('validCidrOrIpProvider')]
