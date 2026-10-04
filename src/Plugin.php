@@ -32,6 +32,14 @@ use yii\web\Response as YiiResponse;
 
 /**
  * Fort — rate limiting and security event monitoring.
+ *
+ * @property-read services\AlertService $alerts
+ * @property-read services\IpBlockService $ipBlocks
+ * @property-read services\NotificationService $notifications
+ * @property-read services\RateLimitService $rateLimiter
+ * @property-read services\RuntimeSettingsService $runtimeSettings
+ * @property-read services\SecurityEventService $securityEvents
+ * @property-read services\SecurityHeadersService $securityHeaders
  */
 class Plugin extends BasePlugin
 {
@@ -168,6 +176,9 @@ class Plugin extends BasePlugin
                 \yii\base\Application::EVENT_BEFORE_REQUEST,
                 function () {
                     $plugin = self::getInstance();
+                    if ($plugin === null) {
+                        return;
+                    }
                     $plugin->ipBlocks->enforceRequest();
                     $plugin->rateLimiter->enforce();
                 }
@@ -238,7 +249,7 @@ class Plugin extends BasePlugin
                 if ($event->user !== null) {
                     $attemptedLogin = $event->user->email ?: $event->user->username ?: null;
                 }
-                if ($attemptedLogin === null || $attemptedLogin === '') {
+                if ($attemptedLogin === null) {
                     $body = $request->getBodyParams();
                     $attemptedLogin = $body['loginName'] ?? $body['username'] ?? $body['email'] ?? null;
                 }
@@ -250,10 +261,10 @@ class Plugin extends BasePlugin
                     if ($clean === null) {
                         $clean = preg_replace('/[\x00-\x1F\x7F]/', '', $attemptedLogin) ?? '';
                     }
-                    $attemptedLogin = StringHelper::truncate(trim((string) $clean), 128);
-                    if ($attemptedLogin === '') {
-                        $attemptedLogin = null;
-                    }
+                    $cleanedLogin = trim((string) $clean);
+                    $attemptedLogin = $cleanedLogin === ''
+                        ? null
+                        : StringHelper::truncate($cleanedLogin, 128);
                 } else {
                     $attemptedLogin = null;
                 }
@@ -425,7 +436,17 @@ class Plugin extends BasePlugin
         return $item;
     }
 
-    protected function createSettingsModel(): ?Model
+    public function getSettings(): models\Settings
+    {
+        $settings = parent::getSettings();
+        if (!$settings instanceof models\Settings) {
+            throw new \LogicException('Fort settings are unavailable.');
+        }
+
+        return $settings;
+    }
+
+    protected function createSettingsModel(): models\Settings
     {
         return new models\Settings();
     }
@@ -443,7 +464,7 @@ class Plugin extends BasePlugin
      */
     private function renderSettingsHtmlReadOnly(): string
     {
-        if (method_exists(Html::class, 'disableInputs')) {
+        if (is_callable([Html::class, 'disableInputs'])) {
             return (string) Html::disableInputs(fn() => $this->settingsHtml());
         }
 

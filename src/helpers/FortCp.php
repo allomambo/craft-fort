@@ -20,7 +20,7 @@ final class FortCp
             return '';
         }
 
-        if (Plugin::isCraft5() && method_exists(Cp::class, 'elementChipHtml')) {
+        if (Plugin::isCraft5() && is_callable([Cp::class, 'elementChipHtml'])) {
             return Cp::elementChipHtml($element, [
                 'size' => Cp::ELEMENT_SIZE_SMALL,
                 'showThumb' => true,

@@ -246,7 +246,7 @@ class NotificationService extends Component
             $clientIp = PiiRedactor::anonymizeIp($clientIp);
         }
 
-        $requestPath = isset($payload['requestPath']) && $payload['requestPath'] !== null && $payload['requestPath'] !== ''
+        $requestPath = isset($payload['requestPath']) && $payload['requestPath'] !== ''
             ? (string) $payload['requestPath']
             : null;
 

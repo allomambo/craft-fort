@@ -16,8 +16,8 @@ class m260416_120000_fort_date_created_indexes extends Migration
 
     public function safeDown(): bool
     {
-        $this->dropIndex($this->db->getIndexName('{{%fort_security_events}}', 'dateCreated'), '{{%fort_security_events}}');
-        $this->dropIndex($this->db->getIndexName('{{%fort_alerts}}', 'dateCreated'), '{{%fort_alerts}}');
+        $this->dropIndexIfExists('{{%fort_security_events}}', ['dateCreated']);
+        $this->dropIndexIfExists('{{%fort_alerts}}', ['dateCreated']);
 
         return true;
     }

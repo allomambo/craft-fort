@@ -228,13 +228,13 @@ class RuntimeSettingsService extends Component
 
     /**
      * @param array{
-     *   defaultBlockDurationMinutes?: int,
-     *   permanentBlockAfterAutomaticBlocks?: int|null,
-     *   failedLoginThreshold?: int|null,
-     *   failedLoginWindowMinutes?: int|null,
-     *   maxRequestsPerIpPerMinute?: int|null,
-     *   httpRateLimitAlertsBeforeBlock?: int|null,
-     *   httpRateLimitAlertWindowMinutes?: int|null,
+     *   defaultBlockDurationMinutes?: int|string|null,
+     *   permanentBlockAfterAutomaticBlocks?: int|string|null,
+     *   failedLoginThreshold?: int|string|null,
+     *   failedLoginWindowMinutes?: int|string|null,
+     *   maxRequestsPerIpPerMinute?: int|string|null,
+     *   httpRateLimitAlertsBeforeBlock?: int|string|null,
+     *   httpRateLimitAlertWindowMinutes?: int|string|null,
      * } $attributes
      */
     public function save(array $attributes): bool

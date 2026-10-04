@@ -134,9 +134,6 @@ class RateLimitService extends Component
         }
 
         $retryAfter = self::MINUTE_SECONDS - (time() % self::MINUTE_SECONDS);
-        if ($retryAfter < 1) {
-            $retryAfter = self::MINUTE_SECONDS;
-        }
 
         Craft::$app->getResponse()->format = Response::FORMAT_RAW;
         Craft::$app->getResponse()->headers->set('Retry-After', (string) $retryAfter);

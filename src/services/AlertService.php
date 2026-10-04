@@ -75,7 +75,7 @@ class AlertService extends Component
                 $decoded = json_decode((string) $raw, true);
                 if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
                     $rp = $row['requestPath'] ?? null;
-                    if ($rp !== null && $rp !== '' && (!isset($decoded['requestPath']) || $decoded['requestPath'] === '' || $decoded['requestPath'] === null)) {
+                    if ($rp !== null && $rp !== '' && (!isset($decoded['requestPath']) || $decoded['requestPath'] === '')) {
                         $decoded['requestPath'] = $rp;
                     }
                     $row['metaRows'] = AlertDisplayHelper::metaTableRows($decoded);
