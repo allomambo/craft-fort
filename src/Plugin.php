@@ -131,41 +131,37 @@ class Plugin extends BasePlugin
             }
         });
 
-        // Without explicit rules, CP template resolution can render plugin templates without hitting controllers (Commerce-style).
-        // Overview stays at `fort/dashboard`; other subpages use `fort/settings`, `fort/blocked`, etc. Legacy `fort/dashboard/*`
-        // routes remain so old links keep working.
+        // Explicit CP rules keep plugin templates routed through the controller (Commerce-style). Each dashboard action is
+        // served at `fort/<action>` and at the legacy `fort/dashboard/<action>` so old links keep working.
         Event::on(
             UrlManager::class,
             UrlManager::EVENT_REGISTER_CP_URL_RULES,
             static function(RegisterUrlRulesEvent $event) {
-                $event->rules = [
-                    'fort/clear-events' => 'fort/dashboard/clear-events',
-                    'fort/clear-runtime' => 'fort/dashboard/clear-runtime',
-                    'fort/save-runtime' => 'fort/dashboard/save-runtime',
-                    'fort/add-block' => 'fort/dashboard/add-block',
-                    'fort/unblock' => 'fort/dashboard/unblock',
-                    'fort/save-notes' => 'fort/dashboard/save-notes',
-                    'fort/runtime-modal' => 'fort/dashboard/runtime-modal',
-                    'fort/block-ip-modal' => 'fort/dashboard/block-ip-modal',
-                    'fort/settings' => 'fort/dashboard/settings',
-                    'fort/blocked' => 'fort/dashboard/blocked',
-                    'fort/alerts' => 'fort/dashboard/alerts',
-                    'fort/events' => 'fort/dashboard/events',
-                    'fort/dashboard/clear-events' => 'fort/dashboard/clear-events',
-                    'fort/dashboard/clear-runtime' => 'fort/dashboard/clear-runtime',
-                    'fort/dashboard/save-runtime' => 'fort/dashboard/save-runtime',
-                    'fort/dashboard/add-block' => 'fort/dashboard/add-block',
-                    'fort/dashboard/unblock' => 'fort/dashboard/unblock',
-                    'fort/dashboard/save-notes' => 'fort/dashboard/save-notes',
-                    'fort/dashboard/runtime-modal' => 'fort/dashboard/runtime-modal',
-                    'fort/dashboard/block-ip-modal' => 'fort/dashboard/block-ip-modal',
-                    'fort/dashboard/settings' => 'fort/dashboard/settings',
-                    'fort/dashboard/blocked' => 'fort/dashboard/blocked',
-                    'fort/dashboard/alerts' => 'fort/dashboard/alerts',
-                    'fort/dashboard/events' => 'fort/dashboard/events',
-                    'fort/dashboard' => 'fort/dashboard/index',
-                    'fort' => 'fort/dashboard/cp-root',
-                ] + $event->rules;
+                $actions = [
+                    'clear-events',
+                    'clear-runtime',
+                    'save-runtime',
+                    'add-block',
+                    'unblock',
+                    'save-notes',
+                    'runtime-modal',
+                    'block-ip-modal',
+                    'settings',
+                    'blocked',
+                    'alerts',
+                    'events',
+                ];
+
+                $rules = [];
+                foreach (['fort', 'fort/dashboard'] as $prefix) {
+                    foreach ($actions as $action) {
+                        $rules["$prefix/$action"] = "fort/dashboard/$action";
+                    }
+                }
+                $rules['fort/dashboard'] = 'fort/dashboard/index';
+                $rules['fort'] = 'fort/dashboard/cp-root';
+
+                $event->rules = $rules + $event->rules;
             }
         );
 
