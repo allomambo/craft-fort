@@ -9,6 +9,20 @@ use craft\base\Model;
 
 class Settings extends Model
 {
+    /**
+     * Inclusive bounds for the integer limits, keyed by settings attribute. Shared by validation
+     * ({@see self::rules()}) and the runtime overrides in `RuntimeSettingsService`.
+     */
+    public const LIMITS = [
+        'maxRequestsPerIpPerMinute' => ['min' => 1, 'max' => 1000000],
+        'httpRateLimitAlertsBeforeBlock' => ['min' => 1, 'max' => 100000],
+        'httpRateLimitAlertWindowMinutes' => ['min' => 1, 'max' => 10080],
+        'failedLoginThresholdPerIp' => ['min' => 1, 'max' => 10000],
+        'failedLoginWindowMinutes' => ['min' => 1, 'max' => 10080],
+        'defaultBlockDurationMinutes' => ['min' => 1, 'max' => 525600],
+        'permanentBlockAfterAutomaticBlocks' => ['min' => 1, 'max' => 100000],
+    ];
+
     public bool $httpRateLimitEnabled = true;
 
     public int $maxRequestsPerIpPerMinute = 400;
@@ -110,13 +124,10 @@ class Settings extends Model
         return [
             [['httpRateLimitEnabled', 'excludeCpFromHttpRateLimit', 'excludeCpResourcesFromHttpRateLimit', 'authLoggingEnabled', 'autoSweepExpiredIpBlocks', 'significantEventEmailEnabled', 'dailyDigestEmailEnabled', 'weeklyDigestEmailEnabled', 'digestSendOnActivity', 'webhookOnSignificantEvent', 'anonymizePii', 'emitSecurityHeaders'], 'boolean'],
             [['maxRequestsPerIpPerMinute', 'httpRateLimitAlertsBeforeBlock', 'httpRateLimitAlertWindowMinutes', 'failedLoginThresholdPerIp', 'failedLoginWindowMinutes', 'defaultBlockDurationMinutes', 'permanentBlockAfterAutomaticBlocks', 'dailyDigestHour', 'weeklyDigestDayOfWeek', 'eventRetentionDays'], 'integer'],
-            [['maxRequestsPerIpPerMinute'], 'integer', 'min' => 1, 'max' => 1000000],
-            [['httpRateLimitAlertsBeforeBlock'], 'integer', 'min' => 1, 'max' => 100000],
-            [['httpRateLimitAlertWindowMinutes'], 'integer', 'min' => 1, 'max' => 10080],
-            [['failedLoginThresholdPerIp'], 'integer', 'min' => 1, 'max' => 10000],
-            [['failedLoginWindowMinutes'], 'integer', 'min' => 1, 'max' => 10080],
-            [['defaultBlockDurationMinutes'], 'integer', 'min' => 1, 'max' => 525600],
-            [['permanentBlockAfterAutomaticBlocks'], 'integer', 'min' => 1, 'max' => 100000],
+            ...array_map(
+                fn(string $attribute) => [[$attribute], 'integer', 'min' => self::LIMITS[$attribute]['min'], 'max' => self::LIMITS[$attribute]['max']],
+                array_keys(self::LIMITS),
+            ),
             [['dailyDigestHour'], 'integer', 'min' => 0, 'max' => 23],
             [['weeklyDigestDayOfWeek'], 'integer', 'min' => 0, 'max' => 6],
             [['eventRetentionDays'], 'integer', 'min' => 1, 'max' => 3650],
