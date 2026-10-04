@@ -3,6 +3,7 @@
 namespace allomambo\fort\helpers;
 
 use Craft;
+use GuzzleHttp\Exception\RequestException;
 
 /**
  * Single source of truth for webhook URL safety, shared by the settings validator, the Control Panel
@@ -65,7 +66,7 @@ final class WebhookUrlGuard
         } catch (\Throwable $e) {
             return [
                 'message' => Craft::t('fort', 'Webhook URL host could not be resolved.'),
-                'logReason' => 'resolution of host ' . $host . ' failed: ' . $e->getMessage(),
+                'logReason' => 'resolution of host ' . $host . ' failed (' . $e::class . ').',
             ];
         }
 
@@ -77,5 +78,24 @@ final class WebhookUrlGuard
         }
 
         return null;
+    }
+
+    /**
+     * Describe a failed webhook send for the log without quoting the URL.
+     *
+     * Guzzle and cURL put the full request URI in their exception messages, and a webhook URL commonly
+     * carries its own secret in the path or query (Slack, Discord, and Teams all work that way), so a
+     * send failure may only ever be reported as the host, the exception class, and — when the target
+     * answered — the HTTP status. Never the path, query, userinfo, or the exception message.
+     */
+    public static function sendFailureLogReason(string $host, \Throwable $e): string
+    {
+        $details = [$e::class];
+
+        if ($e instanceof RequestException && $e->getResponse() !== null) {
+            $details[] = 'HTTP ' . $e->getResponse()->getStatusCode();
+        }
+
+        return 'host ' . $host . ' (' . implode(', ', $details) . ').';
     }
 }

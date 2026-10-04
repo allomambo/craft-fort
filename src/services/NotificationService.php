@@ -867,7 +867,7 @@ class NotificationService extends Component
                 );
             }
         } catch (\Throwable $e) {
-            Craft::warning('Fort webhook failed: ' . $e->getMessage(), __METHOD__);
+            Craft::warning('Fort webhook failed: ' . WebhookUrlGuard::sendFailureLogReason($host, $e), __METHOD__);
         }
     }
 
