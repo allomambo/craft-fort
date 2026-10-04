@@ -70,7 +70,7 @@ Run the checks before pushing.
 - Epic work goes on `epic/<n>-<slug>`.
 - Child branches are `fix/<n>-<slug>`, `feat/<n>-<slug>`, or `docs/<n>-<slug>`, and open pull requests into their epic branch.
 - Only the epic pull request targets `dev`, the default branch.
-- Commit messages start with a conventional prefix (`fix:`, `feat:`, `docs:`) and describe the behavior change.
+- Commit messages start with a conventional prefix (`fix:`, `feat:`, `docs:`, `chore:`) and describe the behavior change. `chore:` is for tooling and formatting.
 - Pull request bodies say `Fixes #N` and have a Summary section and a Tested section.
 - Releases go through `composer release`. See [scripts/release/README.md](scripts/release/README.md).
 
