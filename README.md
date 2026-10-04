@@ -109,7 +109,7 @@ Digests can be sent via server cron (recommended) or through a built-in pseudo-c
 
 #### Webhooks
 
-HTTPS-only webhook for significant events. Fort validates the URL against SSRF vectors (private IPs, credentials in URL, non-standard ports).
+HTTPS-only webhook for significant events. Fort validates the URL against SSRF vectors (private, reserved, multicast, and IPv4-embedding addresses, credentials in URL, non-standard ports).
 
 Payload format:
 
