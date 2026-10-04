@@ -4,6 +4,7 @@ namespace allomambo\fort\services;
 
 use allomambo\fort\helpers\IpHelper;
 use allomambo\fort\helpers\PiiRedactor;
+use allomambo\fort\helpers\TriggeringUser;
 use allomambo\fort\Plugin;
 use allomambo\fort\records\BlockedIpRecord;
 use allomambo\fort\records\SecurityEventRecord;
@@ -22,19 +23,7 @@ class SecurityEventService extends Component
      */
     public function record(string $type, string $clientIp, ?string $requestPath, array $meta = []): void
     {
-        if ($type === 'login_success') {
-            return;
-        }
-
-        // Only site (non-CP) requests: the logged-in user is the one who provoked the event. CP actions (e.g. manual IP
-        // block) must not attribute the current admin session as "triggering user".
-        $req = Craft::$app->getRequest();
-        if (!$req->getIsConsoleRequest() && !$req->getIsCpRequest()) {
-            $identity = Craft::$app->getUser()->getIdentity();
-            if ($identity !== null && !isset($meta['triggeringUserId'])) {
-                $meta['triggeringUserId'] = $identity->id;
-            }
-        }
+        $meta = TriggeringUser::stamp($meta);
 
         /** @var \allomambo\fort\models\Settings $settings */
         $settings = Plugin::getInstance()->getSettings();
@@ -56,16 +45,12 @@ class SecurityEventService extends Component
     }
 
     /**
-     * Record login failure and evaluate failed-login threshold (success is never stored).
+     * Record a login failure and evaluate the failed-login threshold.
      *
      * @param array<string, mixed> $context
      */
-    public function recordLoginAttempt(bool $success, string $clientIp, ?string $requestPath, array $context = []): void
+    public function recordLoginFailure(string $clientIp, ?string $requestPath, array $context = []): void
     {
-        if ($success) {
-            return;
-        }
-
         $plugin = Plugin::getInstance();
         $clientIp = $plugin->ipBlocks->normalizeClientIp($clientIp);
 

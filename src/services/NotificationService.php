@@ -6,6 +6,7 @@ use allomambo\fort\helpers\AlertDisplayHelper;
 use allomambo\fort\helpers\DigestScheduleHelper;
 use allomambo\fort\helpers\IpHelper;
 use allomambo\fort\helpers\PiiRedactor;
+use allomambo\fort\helpers\TriggeringUser;
 use allomambo\fort\helpers\WebhookUrlGuard;
 use allomambo\fort\models\Settings;
 use allomambo\fort\Plugin;
@@ -228,13 +229,7 @@ class NotificationService extends Component
         /** @var \allomambo\fort\models\Settings $settings */
         $settings = $plugin->getSettings();
 
-        $req = Craft::$app->getRequest();
-        if (!$req->getIsConsoleRequest() && !$req->getIsCpRequest()) {
-            $identity = Craft::$app->getUser()->getIdentity();
-            if ($identity !== null && !isset($payload['triggeringUserId'])) {
-                $payload['triggeringUserId'] = $identity->id;
-            }
-        }
+        $payload = TriggeringUser::stamp($payload);
 
         // Single redaction point: everything below (alert row, webhook, email body and its JSON dump)
         // is derived from $payload, so there is no path left carrying the raw values.
