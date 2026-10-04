@@ -159,8 +159,18 @@ final class IpHelper
      */
     public static function isPrivateOrReservedIp(string $ip): bool
     {
-        $ip = self::canonicalIp(trim($ip));
-        if ($ip === '' || filter_var($ip, FILTER_VALIDATE_IP) === false) {
+        $packed = @inet_pton(trim($ip));
+        if ($packed === false) {
+            return true;
+        }
+        $normalized = inet_ntop($packed);
+        if ($normalized === false) {
+            return true;
+        }
+        // inet_ntop writes IPv4-mapped addresses as ::ffff:a.b.c.d, including hex input
+        // such as ::ffff:7f00:1, so canonicalIp can check the embedded IPv4.
+        $ip = self::canonicalIp($normalized);
+        if (filter_var($ip, FILTER_VALIDATE_IP) === false) {
             return true;
         }
 

@@ -79,12 +79,16 @@ final class IpHelperTest extends TestCase
         yield 'IPv4 CGNAT' => ['100.64.0.1'];
         yield 'IPv6 loopback' => ['::1'];
         yield 'IPv6 ULA' => ['fd00::1'];
+        yield 'IPv4-mapped hex loopback' => ['::ffff:7f00:1'];
+        yield 'IPv4-mapped hex private' => ['::ffff:c0a8:1'];
     }
 
     public function testPublicAddressesAreAccepted(): void
     {
         self::assertFalse(IpHelper::isPrivateOrReservedIp('8.8.8.8'));
         self::assertFalse(IpHelper::isPrivateOrReservedIp('2606:4700:4700::1111'));
+        self::assertFalse(IpHelper::isPrivateOrReservedIp('::ffff:8.8.8.8'));
+        self::assertFalse(IpHelper::isPrivateOrReservedIp('::ffff:0808:0808'));
     }
 
     #[DataProvider('validCidrOrIpProvider')]
