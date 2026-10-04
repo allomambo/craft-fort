@@ -7,3 +7,7 @@
 /phpstan.neon     export-ignore
 /phpunit.xml.dist export-ignore
 /tests            export-ignore
+/AGENTS.md        export-ignore
+/CLAUDE.md        export-ignore
+/docs             export-ignore
+/.cursor          export-ignore
