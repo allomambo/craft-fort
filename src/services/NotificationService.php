@@ -9,6 +9,7 @@ use allomambo\fort\helpers\PiiRedactor;
 use allomambo\fort\models\Settings;
 use allomambo\fort\Plugin;
 use Craft;
+use craft\base\Component;
 use craft\elements\User;
 use craft\helpers\Html;
 use craft\helpers\UrlHelper;
@@ -16,7 +17,6 @@ use craft\mail\Message;
 use craft\web\View;
 use DateTimeImmutable;
 use DateTimeZone;
-use craft\base\Component;
 
 class NotificationService extends Component
 {

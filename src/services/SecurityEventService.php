@@ -8,12 +8,12 @@ use allomambo\fort\Plugin;
 use allomambo\fort\records\BlockedIpRecord;
 use allomambo\fort\records\SecurityEventRecord;
 use Craft;
+use craft\base\Component;
 use craft\helpers\DateTimeHelper;
 use craft\helpers\Db;
 use craft\helpers\Json;
 use craft\helpers\StringHelper;
 use DateTimeZone;
-use craft\base\Component;
 
 class SecurityEventService extends Component
 {
@@ -197,7 +197,7 @@ class SecurityEventService extends Component
         int $windowMinutes,
         ?string $requestPath,
         array $context,
-        ?BlockedIpRecord $blockedRecord
+        ?BlockedIpRecord $blockedRecord,
     ): array {
         $plugin = Plugin::getInstance();
         $payload = array_filter([

@@ -2,27 +2,26 @@
 
 namespace allomambo\fort;
 
-use Craft;
 use allomambo\fort\helpers\ConfigOverrideHelper;
 use allomambo\fort\helpers\FortClientIp;
 use allomambo\fort\helpers\FortCp;
 use allomambo\fort\helpers\RuntimePresenter;
-use craft\base\Model;
+use Craft;
 use craft\base\Plugin as BasePlugin;
 use craft\controllers\UsersController;
 use craft\elements\User;
 use craft\events\LoginFailureEvent;
+use craft\events\RegisterCacheOptionsEvent;
 use craft\events\RegisterTemplateRootsEvent;
 use craft\events\RegisterUrlRulesEvent;
 use craft\helpers\Html;
 use craft\helpers\StringHelper;
 use craft\helpers\UrlHelper;
 use craft\i18n\PhpMessageSource;
+use craft\utilities\ClearCaches;
 use craft\web\Application as WebApplication;
 use craft\web\Controller;
 use craft\web\UrlManager;
-use craft\events\RegisterCacheOptionsEvent;
-use craft\utilities\ClearCaches;
 use craft\web\View;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
@@ -94,12 +93,12 @@ class Plugin extends BasePlugin
         Event::on(
             ClearCaches::class,
             ClearCaches::EVENT_REGISTER_CACHE_OPTIONS,
-            static function (RegisterCacheOptionsEvent $event) {
+            static function(RegisterCacheOptionsEvent $event) {
                 $event->options[] = [
                     'key' => 'fort-site-icon',
                     'label' => Craft::t('fort', 'Fort site icon'),
                     'info' => Craft::t('fort', 'Favicon found in the web root for notification emails.'),
-                    'action' => static function () {
+                    'action' => static function() {
                         Craft::$app->getCache()->delete(services\NotificationService::SITE_ICON_CACHE_KEY);
                     },
                 ];
@@ -110,7 +109,7 @@ class Plugin extends BasePlugin
         Event::on(
             View::class,
             View::EVENT_REGISTER_CP_TEMPLATE_ROOTS,
-            function (RegisterTemplateRootsEvent $e) {
+            function(RegisterTemplateRootsEvent $e) {
                 $plugin = self::getInstance();
                 if ($plugin === null) {
                     return;
@@ -123,7 +122,7 @@ class Plugin extends BasePlugin
         );
 
         // Craft 4 Twig has no craft.cp.elementHtml / elementChip(); expose a dual-compatible helper.
-        Craft::$app->getView()->registerTwigExtension(new class () extends AbstractExtension {
+        Craft::$app->getView()->registerTwigExtension(new class() extends AbstractExtension {
             public function getFunctions(): array
             {
                 return [
@@ -138,7 +137,7 @@ class Plugin extends BasePlugin
         Event::on(
             UrlManager::class,
             UrlManager::EVENT_REGISTER_CP_URL_RULES,
-            static function (RegisterUrlRulesEvent $event) {
+            static function(RegisterUrlRulesEvent $event) {
                 $event->rules = [
                     'fort/clear-events' => 'fort/dashboard/clear-events',
                     'fort/clear-runtime' => 'fort/dashboard/clear-runtime',
@@ -174,7 +173,7 @@ class Plugin extends BasePlugin
             Event::on(
                 \yii\base\Application::class,
                 \yii\base\Application::EVENT_BEFORE_REQUEST,
-                function () {
+                function() {
                     $plugin = self::getInstance();
                     if ($plugin === null) {
                         return;
@@ -187,7 +186,7 @@ class Plugin extends BasePlugin
             Event::on(
                 \yii\base\Application::class,
                 \yii\base\Application::EVENT_AFTER_REQUEST,
-                function () {
+                function() {
                     if (Craft::$app->getRequest()->getIsConsoleRequest()) {
                         return;
                     }
@@ -215,7 +214,7 @@ class Plugin extends BasePlugin
             Event::on(
                 \craft\web\Response::class,
                 \yii\web\Response::EVENT_AFTER_PREPARE,
-                function (\yii\base\Event $event) {
+                function(\yii\base\Event $event) {
                     $plugin = self::getInstance();
                     if ($plugin === null || !Craft::$app->getPlugins()->isPluginEnabled($plugin->id)) {
                         return;
@@ -238,7 +237,7 @@ class Plugin extends BasePlugin
         Event::on(
             UsersController::class,
             UsersController::EVENT_LOGIN_FAILURE,
-            function (LoginFailureEvent $event) {
+            function(LoginFailureEvent $event) {
                 $plugin = self::getInstance();
                 if ($plugin === null || !Craft::$app->getPlugins()->isPluginEnabled($plugin->id)) {
                     return;
@@ -358,7 +357,7 @@ class Plugin extends BasePlugin
     public function renderPluginSettings(Controller $controller, bool $readOnly, string $context = 'global-settings'): YiiResponse
     {
         $view = Craft::$app->getView();
-        $settingsHtml = $view->namespaceInputs(function () use ($readOnly) {
+        $settingsHtml = $view->namespaceInputs(function() use ($readOnly) {
             if ($readOnly) {
                 return $this->renderSettingsHtmlReadOnly();
             }

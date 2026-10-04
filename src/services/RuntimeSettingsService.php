@@ -6,10 +6,10 @@ use allomambo\fort\models\Settings;
 use allomambo\fort\Plugin;
 use allomambo\fort\records\FortRuntimeRecord;
 use Craft;
+use craft\base\Component;
 use craft\helpers\StringHelper;
 use DateTimeImmutable;
 use DateTimeInterface;
-use craft\base\Component;
 
 /**
  * DB-backed runtime options (editable in CP when project config locks plugin settings).

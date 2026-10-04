@@ -5,12 +5,12 @@ namespace allomambo\fort\services;
 use allomambo\fort\helpers\AlertDisplayHelper;
 use allomambo\fort\records\AlertRecord;
 use Craft;
+use craft\base\Component;
 use craft\helpers\DateTimeHelper;
 use craft\helpers\Db;
 use craft\helpers\Json;
 use craft\helpers\StringHelper;
 use DateTimeZone;
-use craft\base\Component;
 
 class AlertService extends Component
 {

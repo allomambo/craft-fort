@@ -10,10 +10,10 @@ use allomambo\fort\helpers\IpHelper;
 use allomambo\fort\Plugin;
 use allomambo\fort\records\BlockedIpRecord;
 use Craft;
+use craft\base\Component;
 use craft\helpers\DateTimeHelper;
 use craft\helpers\Db;
 use craft\helpers\StringHelper;
-use craft\base\Component;
 use DateTimeZone;
 use yii\db\Expression;
 use yii\web\ForbiddenHttpException;
@@ -201,7 +201,7 @@ class IpBlockService extends Component
         $now = DateTimeHelper::now();
 
         try {
-            return Craft::$app->getDb()->transaction(function () use ($plugin, $settings, $clientIp, $reason, $minutes, $now) {
+            return Craft::$app->getDb()->transaction(function() use ($plugin, $settings, $clientIp, $reason, $minutes, $now) {
                 $record = $this->loadOrCreateBlockedRecord($clientIp);
                 $record->manual = false;
 
@@ -313,7 +313,7 @@ class IpBlockService extends Component
         $now = DateTimeHelper::now();
 
         try {
-            return (bool) Craft::$app->getDb()->transaction(function () use ($plugin, $settings, $clientIp, $notes, $minutes, $now, $forcePermanent) {
+            return (bool) Craft::$app->getDb()->transaction(function() use ($plugin, $settings, $clientIp, $notes, $minutes, $now, $forcePermanent) {
                 $record = $this->loadOrCreateBlockedRecord($clientIp);
                 $record->blockCount = (int) $record->blockCount + 1;
 
